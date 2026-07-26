@@ -103,7 +103,7 @@ const Login: React.FC = () => {
             variant="caption"
             sx={{ display: "block", textAlign: "center", mt: 1.5, color: palette.accentDim }}
           >
-            demo: use an email containing "admin" for the Admin console
+            demo: admin@college.edu / Admin@123 · jsmith@college.edu / Faculty@123
           </Typography>
         </Box>
       </ConsolePanel>

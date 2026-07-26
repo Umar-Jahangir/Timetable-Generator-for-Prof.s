@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { AuthState, User, UserRole } from "../types";
+import api from "../services/api";
+import { AuthState, User } from "../types";
 
 interface AuthContextValue extends AuthState {
   login: (email: string, password: string) => Promise<User>;
@@ -11,33 +12,35 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 const STORAGE_TOKEN_KEY = "smartsched_token";
 const STORAGE_USER_KEY = "smartsched_user";
 
+// Shape returned by POST /api/v1/auth/login (see backend/app/schemas/auth.py::TokenResponse).
+interface LoginApiResponse {
+  access_token: string;
+  token_type: string;
+  expires_in_minutes: number;
+  user: {
+    user_id: number;
+    name: string;
+    email: string;
+    role: "admin" | "faculty";
+    is_active: boolean;
+  };
+}
+
 /**
- * NOTE (Phase 1 scope):
- * The real authentication flow (JWT issued by FastAPI, verified against
- * MySQL) is built in Phase 3 - Authentication. For now this provider
- * exposes the exact same interface the rest of the app will consume,
- * backed by a mock login so every screen and route guard can be wired
- * up and tested end-to-end today. Swapping the mock for `api.post(...)`
- * in Phase 3 will not require touching any consuming component.
+ * Calls the real Phase 3 backend: POST /api/v1/auth/login. The backend
+ * issues a JWT signed with HS256, carrying the user's id (`sub`) and
+ * `role`, which every protected route decodes and checks via
+ * `require_role(...)` (see backend/app/api/v1/deps.py).
  */
-function mockLogin(email: string, password: string): Promise<{ user: User; token: string }> {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!email || !password) {
-        reject(new Error("Email and password are required."));
-        return;
-      }
-      const role: UserRole = email.toLowerCase().includes("admin") ? "admin" : "faculty";
-      const user: User = {
-        id: 1,
-        name: role === "admin" ? "HOD Admin" : "Prof. John Smith",
-        email,
-        role,
-        department: "Computer Engineering",
-      };
-      resolve({ user, token: "mock-jwt-token" });
-    }, 500);
-  });
+async function apiLogin(email: string, password: string): Promise<{ user: User; token: string }> {
+  const { data } = await api.post<LoginApiResponse>("/auth/login", { email, password });
+  const user: User = {
+    id: data.user.user_id,
+    name: data.user.name,
+    email: data.user.email,
+    role: data.user.role,
+  };
+  return { user, token: data.access_token };
 }
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -56,12 +59,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const login = useCallback(async (email: string, password: string) => {
-    const { user: loggedInUser, token: issuedToken } = await mockLogin(email, password);
-    setUser(loggedInUser);
-    setToken(issuedToken);
-    localStorage.setItem(STORAGE_TOKEN_KEY, issuedToken);
-    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(loggedInUser));
-    return loggedInUser;
+    try {
+      const { user: loggedInUser, token: issuedToken } = await apiLogin(email, password);
+      setUser(loggedInUser);
+      setToken(issuedToken);
+      localStorage.setItem(STORAGE_TOKEN_KEY, issuedToken);
+      localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(loggedInUser));
+      return loggedInUser;
+    } catch (err: any) {
+      // FastAPI returns { detail: "..." } for both 401 (bad credentials)
+      // and 403 (deactivated account) — surface that message as-is.
+      const message = err?.response?.data?.detail || "Login failed. Check your credentials.";
+      throw new Error(message);
+    }
   }, []);
 
   const logout = useCallback(() => {
