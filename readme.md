@@ -30,6 +30,21 @@ SmartSched AI is a full-stack, modular web platform that automatically generates
 
 Manual timetable creation is slow, error-prone, and hard to optimize across faculty, classrooms, labs, and divisions. SmartSched AI solves this with two core modules:
 
+### Build status
+
+| Phase | Status | Notes |
+|---|---|---|
+| 1. Frontend | ✅ Done | React/TS/MUI, terminal-console theme, full nav shell, builds clean |
+| 2. Database Design | ✅ Done | 16 tables, 27 FKs, executed against real MySQL, seed data verified |
+| 3. Authentication | ✅ Done | JWT + RBAC, tested end-to-end against the live DB |
+| 4. Admin Module | ⬜ Not started | |
+| 5. Faculty Module | ⬜ Not started | |
+| 6. Timetable Generation Engine | ⬜ Not started | |
+| 7. Rule-Based Scheduling Assistant | ⬜ Not started | |
+| 8. Analytics | ⬜ Not started | |
+| 9. Testing | ⬜ Not started | |
+| 10. Deployment | ⬜ Not started | |
+
 | Module | Responsibility |
 |---|---|
 | **1. AI Timetable Optimization Engine** | Generates clash-free, workload-balanced, idle-time-minimized timetables using Google OR-Tools |
