@@ -10,11 +10,12 @@ interface ConsolePanelProps {
 }
 
 /**
- * ConsolePanel is the signature visual element of SmartSched AI:
- * a thin cyan-bordered "console window" with bracket corners and an
- * optional bracketed title, e.g. "[ TIMETABLE ]". Every screen in the
- * product is composed from one or more of these panels, echoing the
- * terminal-dashboard language of the original wireframes.
+ * UNCHANGED FROM CRA — this is a pure presentational component with no
+ * hooks, no routing, no browser-only APIs. It doesn't need a "use client"
+ * directive of its own; when it's imported into a Client Component
+ * (which every page using it currently is), Next.js includes it in the
+ * client bundle automatically. If a future Server Component page wants
+ * to render it directly, it still works with zero changes.
  */
 const ConsolePanel: React.FC<ConsolePanelProps> = ({ title, children, sx, dense }) => {
   return (
@@ -59,7 +60,7 @@ const ConsolePanel: React.FC<ConsolePanelProps> = ({ title, children, sx, dense 
             fontSize: 12,
             letterSpacing: 1,
             color: palette.border,
-            fontFamily: '"JetBrains Mono", monospace',
+            fontFamily: "var(--font-jetbrains-mono), monospace",
           }}
         >
           [ {title.toUpperCase()} ]

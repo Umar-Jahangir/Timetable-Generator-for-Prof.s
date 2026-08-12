@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import { Box, List, ListItemButton, ListItemText, Typography } from "@mui/material";
-import { NavLink } from "react-router-dom";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { palette } from "../../theme/theme";
 
 export interface NavItem {
@@ -13,7 +16,16 @@ interface SidebarProps {
   brandSubtitle: string;
 }
 
+/**
+ * CHANGED FROM CRA: react-router's <NavLink> (which applied an "active"
+ * class automatically) is replaced by next/link's <Link>, combined with
+ * the usePathname() hook to compute the active state manually. This file
+ * must be a Client Component ("use client") because usePathname is a
+ * client-side hook.
+ */
 const Sidebar: React.FC<SidebarProps> = ({ items, brandSubtitle }) => {
+  const pathname = usePathname();
+
   return (
     <Box
       component="nav"
@@ -36,28 +48,37 @@ const Sidebar: React.FC<SidebarProps> = ({ items, brandSubtitle }) => {
         </Typography>
       </Box>
       <List sx={{ py: 0 }}>
-        {items.map((item) => (
-          <ListItemButton
-            key={item.path}
-            component={NavLink}
-            to={item.path}
-            sx={{
-              borderBottom: `1px solid ${palette.divider}`,
-              color: palette.textDim,
-              fontFamily: '"JetBrains Mono", monospace',
-              "&.active": {
-                color: palette.border,
-                backgroundColor: "rgba(63,208,224,0.08)",
-                borderLeft: `2px solid ${palette.border}`,
-              },
-              "&:hover": {
-                backgroundColor: "rgba(63,208,224,0.05)",
-              },
-            }}
-          >
-            <ListItemText primaryTypographyProps={{ fontSize: 14 }} primary={item.label} />
-          </ListItemButton>
-        ))}
+        {items.map((item) => {
+          const isActive = pathname === item.path;
+          return (
+            <ListItemButton
+              key={item.path}
+              component={Link}
+              href={item.path}
+              selected={isActive}
+              sx={{
+                borderBottom: `1px solid ${palette.divider}`,
+                color: isActive ? palette.border : palette.textDim,
+                fontFamily: "var(--font-jetbrains-mono), monospace",
+                borderLeft: isActive ? `2px solid ${palette.border}` : "2px solid transparent",
+                "&.Mui-selected": {
+                  backgroundColor: "rgba(63,208,224,0.08)",
+                },
+                "&.Mui-selected:hover": {
+                  backgroundColor: "rgba(63,208,224,0.12)",
+                },
+                "&:hover": {
+                  backgroundColor: "rgba(63,208,224,0.05)",
+                },
+              }}
+            >
+              <ListItemText
+                slotProps={{ primary: { sx: { fontSize: 14 } } }}
+                primary={item.label}
+              />
+            </ListItemButton>
+          );
+        })}
       </List>
     </Box>
   );

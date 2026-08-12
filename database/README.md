@@ -11,7 +11,8 @@ database/
 ├── schema/
 │   └── 001_create_tables.sql   # Full DDL — creates the database + all 16 tables
 ├── seed/
-│   └── seed_data.sql           # Sample data matching the product wireframes
+│   ├── seed_data.sql           # Sample data matching the product wireframes
+│   └── 002_assignments.sql     # Subject-Faculty-Division assignments (Phase 6 dependency)
 └── docs/
     └── er-diagram.md           # Textual ER diagram + design notes
 ```
@@ -20,8 +21,15 @@ database/
 
 ```bash
 mysql -u root -p < database/schema/001_create_tables.sql
-mysql -u root -p < database/seed/seed_data.sql   # optional, for local dev/demo
+mysql -u root -p < database/seed/seed_data.sql       # optional, for local dev/demo
+mysql -u root -p < database/seed/002_assignments.sql # optional, needed if you want Phase 6's timetable generator to have something to schedule out of the box
 ```
+
+> **Note on `time_slots`:** `seed_data.sql` only populates Monday (a
+> deliberate demonstration pattern in Phase 2). Phase 6's backend
+> (`app/scheduling/time_slot_seeder.py`) automatically and idempotently
+> fills in Tuesday–Saturday the first time `POST /admin/timetable/generate`
+> runs — no separate script needed for that part.
 
 Both scripts have been executed end-to-end against a real MySQL 8.0.46
 instance as part of building this project — not just written and assumed

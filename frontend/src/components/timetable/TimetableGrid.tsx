@@ -23,9 +23,12 @@ const cellColor = (type?: TimetableSlot["type"]) => {
   }
 };
 
+// UNCHANGED FROM CRA — no hooks, no routing, no browser APIs.
 const TimetableGrid: React.FC<TimetableGridProps> = ({ slots }) => {
   const findSlot = (day: DayOfWeek, hour: string) =>
-    slots.find((s) => s.day === day && `${parseInt(s.startTime)}-${parseInt(s.endTime) || 12}` === hour);
+    slots.find(
+      (s) => s.day === day && `${parseInt(s.startTime)}-${parseInt(s.endTime) || 12}` === hour
+    );
 
   return (
     <Box sx={{ overflowX: "auto" }}>
@@ -60,7 +63,8 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({ slots }) => {
                   }}
                 >
                   <Typography variant="caption" sx={{ color: cellColor(slot?.type) }}>
-                    {slot?.subject || (slot?.type === "break" ? "BREAK" : slot?.type === "free" ? "FREE" : "")}
+                    {slot?.subject ||
+                      (slot?.type === "break" ? "BREAK" : slot?.type === "free" ? "FREE" : "")}
                   </Typography>
                 </Box>
               );
@@ -81,7 +85,10 @@ const HeaderCell: React.FC<{ children: React.ReactNode; dim?: boolean }> = ({ ch
       backgroundColor: palette.surfaceRaised,
     }}
   >
-    <Typography variant="caption" sx={{ color: dim ? palette.textDim : palette.border, fontWeight: 600 }}>
+    <Typography
+      variant="caption"
+      sx={{ color: dim ? palette.textDim : palette.border, fontWeight: 600 }}
+    >
       {children}
     </Typography>
   </Box>

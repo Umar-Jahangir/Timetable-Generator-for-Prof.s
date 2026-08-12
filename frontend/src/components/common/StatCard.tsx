@@ -8,6 +8,7 @@ interface StatCardProps {
   accent?: boolean;
 }
 
+// UNCHANGED FROM CRA — no hooks, no routing, no browser APIs.
 const StatCard: React.FC<StatCardProps> = ({ label, value, accent }) => (
   <Box
     sx={{

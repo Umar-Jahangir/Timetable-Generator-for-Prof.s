@@ -18,6 +18,7 @@ SmartSched AI is a full-stack, modular web platform that automatically generates
 - [Backend Setup](#backend-setup)
 - [Frontend Setup](#frontend-setup)
 - [Running the Project](#running-the-project)
+- [Testing](#testing)
 - [Folder Structure](#folder-structure)
 - [API Documentation](#api-documentation)
 - [Future Scope](#future-scope)
@@ -34,12 +35,16 @@ Manual timetable creation is slow, error-prone, and hard to optimize across facu
 
 | Phase | Status | Notes |
 |---|---|---|
-| 1. Frontend | ✅ Done | React/TS/MUI, terminal-console theme, full nav shell, builds clean |
+| 1. Frontend | ✅ Done | **Migrated from CRA to Next.js 15** — see `frontend/README.md` for full migration notes |
 | 2. Database Design | ✅ Done | 16 tables, 27 FKs, executed against real MySQL, seed data verified |
-| 3. Authentication | ✅ Done | JWT + RBAC, tested end-to-end against the live DB |
-| 4. Admin Module | ⬜ Not started | |
-| 5. Faculty Module | ⬜ Not started | |
-| 6. Timetable Generation Engine | ⬜ Not started | |
+| 3. Authentication | ✅ Done | JWT + RBAC, tested end-to-end against the live DB; frontend now also uses Next.js middleware for edge-level redirects |
+| 4. Admin Module | ✅ Done | Full CRUD (Faculty, Subjects, Rooms, Divisions, Constraints) + real dashboard stats — backend fully tested against live DB, frontend builds/lints/type-checks clean |
+| 5. Faculty Module | ✅ Done | Today's Schedule, Weekly Timetable, Workload, Notifications all real; lecture request submission + admin approval loop fully wired end-to-end |
+| 6. Timetable Generation Engine | ✅ Done | Real Google OR-Tools CP-SAT optimizer — zero clashes verified via SQL, not eyeballed; Phase 5's endpoints now show real data automatically |
+| 7. Rule-Based Scheduling Assistant | ✅ Done | Genuinely rule-based (no LLM) intent detection + explainable scoring; full flagship flow verified end-to-end including stale-slot re-validation |
+| 8. Analytics | ✅ Done | Real utilization/idle-time metrics from actual data; no fabricated "conflicts prevented" counter — see backend README for why |
+| 9. Testing | ✅ Done | 57 backend pytest tests (isolated test DB) + 34 frontend Vitest tests, all passing; honestly scoped as unit/component-level, not full browser e2e |
+| 10. Deployment | ⬜ Not started | |
 | 7. Rule-Based Scheduling Assistant | ⬜ Not started | |
 | 8. Analytics | ⬜ Not started | |
 | 9. Testing | ⬜ Not started | |
@@ -68,16 +73,19 @@ The system supports two roles — **Administrator** (configures data, constraint
 
 | Layer | Technology |
 |---|---|
-| Frontend | React + TypeScript + Material UI |
+| Frontend | Next.js 15 (App Router) + TypeScript + Material UI + Axios + React Hook Form + Zod + TanStack Query |
 | Backend | Python + FastAPI |
 | Database | MySQL |
 | ORM | SQLAlchemy |
 | Authentication | JWT |
 | Scheduling Engine | Google OR-Tools |
 | Charts | Chart.js |
+| Tooling | ESLint + Prettier + Husky (frontend) |
 | Version Control | Git + GitHub |
 
-> No Docker, no Vite, no external LLM APIs (OpenAI/Gemini) are used. The AI Assistant is fully rule-based.
+> No Docker, no external LLM APIs (OpenAI/Gemini) are used. The AI Assistant is fully rule-based.
+>
+> **Migration note:** the frontend was originally scaffolded with Create React App, then migrated to Next.js 15 after CRA's tooling broke under Node 22 (`react-scripts` is unmaintained). See `frontend/README.md` for the complete before/after breakdown.
 
 ---
 
@@ -85,7 +93,7 @@ The system supports two roles — **Administrator** (configures data, constraint
 
 Make sure the following are installed on your machine:
 
-- **Node.js** ≥ 18.x and **npm** ≥ 9.x
+- **Node.js** ≥ 18.18 (Next.js 15 requirement; this project has been built and tested on Node 22) and **npm** ≥ 9.x
 - **Python** ≥ 3.10
 - **MySQL Server** ≥ 8.0
 - **Git**
@@ -128,13 +136,13 @@ APP_ENV=development
 BACKEND_CORS_ORIGINS=http://localhost:5173,http://localhost:3000
 ```
 
-Create a `.env` file inside `frontend/`:
+Create a `.env.local` file inside `frontend/` (use `frontend/.env.example` as a template):
 
 ```env
-VITE_API_BASE_URL=http://localhost:8000/api/v1
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
-> Note: even though Vite is excluded from the *build tooling* decision described in the project brief, if the frontend is bootstrapped with Create React App instead, use `REACT_APP_API_BASE_URL` in place of `VITE_API_BASE_URL` and adjust accordingly.
+> Next.js only exposes environment variables prefixed `NEXT_PUBLIC_` to the browser. This replaces the `REACT_APP_*` convention from the project's original Create React App scaffold — see `frontend/README.md` for the full CRA → Next.js migration notes.
 
 ---
 
@@ -202,13 +210,18 @@ cd frontend
 npm install
 
 # Copy environment file
-cp .env.example .env            # then fill in your values
+cp .env.example .env.local
 
 # Start the development server
-npm run dev          # or `npm start` depending on the bootstrap tool used
+npm run dev
 ```
 
-The frontend will be available at **http://localhost:5173** (or `http://localhost:3000`).
+The frontend will be available at **http://localhost:3000**.
+
+Husky's pre-commit hook (lint + format on staged files) installs
+automatically via `npm install`'s `prepare` script, as long as `frontend/`
+(or a parent directory) is a git repository. See `frontend/README.md`
+for details, including what happens if it isn't.
 
 ---
 
@@ -236,6 +249,28 @@ Then open the frontend URL in your browser and log in as Admin or Faculty.
 2. Configure institutional constraints.
 3. Click **Generate Timetable**.
 4. Log in as Faculty → view personal timetable → open **AI Scheduling Assistant** → try "Find an empty classroom tomorrow" or "Schedule an extra lecture."
+
+---
+
+## Testing
+
+**Backend** (57 pytest tests, isolated test database):
+```bash
+cd backend
+venv/bin/pip install -r requirements-dev.txt
+bash tests/setup_test_db.sh   # one-time (or re-run any time to reset)
+pytest
+```
+
+**Frontend** (34 Vitest tests):
+```bash
+cd frontend
+npm run test
+```
+
+See each README's Phase 9 section for what's covered and what's
+deliberately out of scope (no full browser e2e — reasoning explained
+there, not just asserted here).
 
 ---
 
@@ -267,42 +302,39 @@ smartsched-ai/
 │   │   │       ├── rule_engine.py       # Constraint checking rules
 │   │   │       └── recommender.py       # Scoring & ranking logic
 │   │   └── utils/
-│   ├── alembic/                     # DB migrations
-│   ├── tests/
+│   ├── tests/                        # 57 pytest tests (Phase 9) + setup_test_db.sh
 │   ├── requirements.txt
+│   ├── requirements-dev.txt          # extends requirements.txt with pytest, httpx, pytest-order
 │   └── .env.example
 │
-├── frontend/
+├── frontend/                         # Next.js 15 (App Router) — see frontend/README.md for full details
 │   ├── public/
 │   ├── src/
-│   │   ├── assets/
-│   │   ├── components/              # Reusable UI components
-│   │   ├── pages/
-│   │   │   ├── auth/                # Login, Forgot Password
-│   │   │   ├── admin/                # Admin Dashboard, Management screens
-│   │   │   ├── faculty/              # Faculty Dashboard, Timetable, Assistant
-│   │   │   └── shared/
-│   │   ├── layouts/
-│   │   ├── hooks/
-│   │   ├── services/                 # API client / axios instances
-│   │   ├── store/                    # State management
-│   │   ├── routes/                   # Route definitions & guards
-│   │   ├── types/                    # TypeScript types/interfaces
-│   │   ├── theme/                    # MUI theme config
-│   │   └── App.tsx
+│   │   ├── app/                      # File-based routing (pages, layouts, middleware live alongside)
+│   │   │   ├── admin/                 # Admin dashboard + management screens
+│   │   │   ├── faculty/               # Faculty dashboard, timetable, assistant
+│   │   │   └── login/
+│   │   ├── middleware.ts             # Edge-level route protection
+│   │   ├── components/               # auth/, common/, layout/, timetable/ — *.test.tsx alongside components (Phase 9)
+│   │   ├── hooks/useAuth.tsx         # TanStack Query-backed auth context
+│   │   ├── lib/                      # api.ts (Axios), cookies.ts — *.test.ts alongside (Phase 9)
+│   │   ├── providers/AppProviders.tsx
+│   │   ├── schemas/                  # Zod validation schemas — *.test.ts alongside (Phase 9)
+│   │   ├── theme/                    # MUI theme, next/font loaders, SSR cache registry
+│   │   └── types/
 │   ├── package.json
+│   ├── next.config.mjs
+│   ├── eslint.config.mjs
+│   ├── vitest.config.mts             # Phase 9
+│   ├── .prettierrc
+│   ├── .husky/
 │   └── .env.example
 │
 ├── database/
 │   ├── schema/                       # SQL DDL scripts
-│   └── seed/                         # Sample seed data
-│
-├── docs/
-│   ├── er-diagram.md
-│   ├── api-reference.md
-│   └── architecture.md
-│
-├── scripts/                          # Setup/deployment helper scripts
+│   ├── seed/                         # Sample seed data
+│   └── docs/
+│       └── er-diagram.md
 │
 ├── .gitignore
 ├── LICENSE
@@ -318,16 +350,27 @@ Once the backend is running, full interactive API documentation is auto-generate
 - **Swagger UI:** `http://localhost:8000/docs`
 - **ReDoc:** `http://localhost:8000/redoc`
 
-Key endpoint groups:
+Key endpoint groups (✅ = built and tested, ⬜ = planned for a later phase):
 
-| Group | Base Path | Purpose |
-|---|---|---|
-| Auth | `/api/v1/auth` | Login, token refresh, password reset |
-| Admin | `/api/v1/admin` | Faculty/Subject/Classroom/Lab/Division CRUD |
-| Timetable | `/api/v1/timetable` | Generate, fetch, edit, export timetables |
-| Constraints | `/api/v1/constraints` | Create/update institutional rules |
-| Faculty | `/api/v1/faculty` | Personal dashboard, workload, notifications |
-| Assistant | `/api/v1/assistant` | Intent-based scheduling queries |
+| Group | Base Path | Purpose | Status |
+|---|---|---|---|
+| Auth | `/api/v1/auth` | Login, current-user lookup | ✅ |
+| Admin - Dashboard | `/api/v1/admin/dashboard` | Real faculty/subject/room/pending-request counts | ✅ |
+| Admin - Lookups | `/api/v1/admin/lookups` | Departments, academic years (read-only, for dropdowns) | ✅ |
+| Admin - Faculty | `/api/v1/admin/faculty` | Full CRUD, creates a login + profile together | ✅ |
+| Admin - Subjects | `/api/v1/admin/subjects` | Full CRUD | ✅ |
+| Admin - Rooms | `/api/v1/admin/rooms` | Full CRUD — serves both Classroom and Laboratory Management via `?room_type=` | ✅ |
+| Admin - Divisions | `/api/v1/admin/divisions` | Full CRUD | ✅ |
+| Admin - Constraints | `/api/v1/admin/constraints` | Full CRUD, `config` is flexible JSON | ✅ |
+| Admin - Lecture Requests | `/api/v1/admin/lecture-requests` | List pending, approve/reject | ✅ |
+| Faculty - Schedule | `/api/v1/faculty/me/schedule/today`, `/me/timetable`, `/me/workload` | Real queries against `timetable_entries` — empty until Phase 6 | ✅ |
+| Faculty - Notifications | `/api/v1/faculty/notifications` | List + mark-as-read | ✅ |
+| Faculty - Lookups | `/api/v1/faculty/lookups` | Read-only subjects/divisions for the request form | ✅ |
+| Faculty - Lecture Requests | `/api/v1/faculty/lecture-requests` | Submit extra/replacement requests, view own history | ✅ |
+| Admin - Assignments | `/api/v1/admin/assignments` | Subject-Faculty-Division assignments — the optimizer's input | ✅ |
+| Admin - Timetable | `/api/v1/admin/timetable`, `/admin/timetable/generate` | Real OR-Tools CP-SAT generation + full timetable listing | ✅ |
+| Assistant | `/api/v1/faculty/assistant/query`, `/faculty/assistant/confirm` | Rule-based intent detection, scored recommendations, booking confirmation | ✅ |
+| Admin - Analytics | `/api/v1/admin/analytics` | Real utilization, idle-time, and assistant-usage metrics | ✅ |
 
 ---
 

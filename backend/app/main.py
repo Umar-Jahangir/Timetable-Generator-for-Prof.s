@@ -3,7 +3,27 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1.routers import admin, auth, faculty
+from app.api.v1.routers import (
+    admin,
+    admin_analytics,
+    admin_assignments,
+    admin_constraints,
+    admin_dashboard,
+    admin_divisions,
+    admin_faculty,
+    admin_lecture_requests,
+    admin_lookups,
+    admin_rooms,
+    admin_subjects,
+    admin_timetable,
+    auth,
+    faculty,
+    faculty_assistant,
+    faculty_lecture_requests,
+    faculty_lookups,
+    faculty_notifications,
+    faculty_schedule,
+)
 from app.config import get_settings
 import app.models  # noqa: F401 — registers all models with SQLAlchemy's mapper
 
@@ -31,7 +51,23 @@ app.add_middleware(
 
 app.include_router(auth.router, prefix=settings.API_V1_PREFIX)
 app.include_router(admin.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_dashboard.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_analytics.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_lookups.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_faculty.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_subjects.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_rooms.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_divisions.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_constraints.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_lecture_requests.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_assignments.router, prefix=settings.API_V1_PREFIX)
+app.include_router(admin_timetable.router, prefix=settings.API_V1_PREFIX)
 app.include_router(faculty.router, prefix=settings.API_V1_PREFIX)
+app.include_router(faculty_schedule.router, prefix=settings.API_V1_PREFIX)
+app.include_router(faculty_notifications.router, prefix=settings.API_V1_PREFIX)
+app.include_router(faculty_lookups.router, prefix=settings.API_V1_PREFIX)
+app.include_router(faculty_lecture_requests.router, prefix=settings.API_V1_PREFIX)
+app.include_router(faculty_assistant.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/", tags=["Health"])

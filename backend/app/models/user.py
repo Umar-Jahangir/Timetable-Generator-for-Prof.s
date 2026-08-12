@@ -25,4 +25,15 @@ class User(Base):
     created_at: Mapped["DateTime"] = mapped_column(DateTime, server_default=func.now())
     updated_at: Mapped["DateTime"] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    faculty_profile = relationship("Faculty", back_populates="user", uselist=False)
+    # passive_deletes=True: without this, SQLAlchemy's default behavior on
+    # deleting a User is to try to NULL out faculty.user_id first (its own
+    # in-memory cascade), which fails because that column is NOT NULL in
+    # the DB schema. This tells SQLAlchemy to leave cascade handling to
+    # MySQL's own ON DELETE CASCADE (defined in the Phase 2 schema) —
+    # confirmed by testing DELETE /admin/faculty/{id} against the live DB.
+    faculty_profile = relationship(
+        "Faculty",
+        back_populates="user",
+        uselist=False,
+        passive_deletes=True,
+    )

@@ -48,13 +48,13 @@ const theme = createTheme({
     divider: palette.divider,
   },
   typography: {
-    fontFamily: '"JetBrains Mono", "Space Grotesk", monospace',
-    h1: { fontFamily: '"Space Grotesk", monospace', fontWeight: 700, letterSpacing: 1 },
-    h2: { fontFamily: '"Space Grotesk", monospace', fontWeight: 700, letterSpacing: 1 },
-    h3: { fontFamily: '"Space Grotesk", monospace', fontWeight: 600, letterSpacing: 0.5 },
-    h4: { fontFamily: '"Space Grotesk", monospace', fontWeight: 600 },
-    h5: { fontFamily: '"Space Grotesk", monospace', fontWeight: 600 },
-    h6: { fontFamily: '"Space Grotesk", monospace', fontWeight: 600 },
+    fontFamily: "var(--font-jetbrains-mono), monospace",
+    h1: { fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 700, letterSpacing: 1 },
+    h2: { fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 700, letterSpacing: 1 },
+    h3: { fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 600, letterSpacing: 0.5 },
+    h4: { fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 600 },
+    h5: { fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 600 },
+    h6: { fontFamily: "var(--font-space-grotesk), monospace", fontWeight: 600 },
     button: { textTransform: "none", fontWeight: 600, letterSpacing: 0.5 },
   },
   shape: {
@@ -88,20 +88,25 @@ const theme = createTheme({
           borderRadius: 2,
           border: `1px solid ${palette.border}`,
         },
-        containedPrimary: {
-          backgroundColor: "transparent",
-          color: palette.border,
-          "&:hover": {
-            backgroundColor: "rgba(63,208,224,0.1)",
+      },
+      variants: [
+        {
+          props: { variant: "contained", color: "primary" },
+          style: {
+            backgroundColor: "transparent",
+            color: palette.border,
+            "&:hover": {
+              backgroundColor: "rgba(63,208,224,0.1)",
+            },
           },
         },
-      },
+      ],
     },
     MuiOutlinedInput: {
       styleOverrides: {
         root: {
           borderRadius: 2,
-          fontFamily: '"JetBrains Mono", monospace',
+          fontFamily: "var(--font-jetbrains-mono), monospace",
         },
         notchedOutline: {
           borderColor: palette.borderDim,
@@ -112,7 +117,7 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           borderRadius: 2,
-          fontFamily: '"JetBrains Mono", monospace',
+          fontFamily: "var(--font-jetbrains-mono), monospace",
         },
       },
     },
