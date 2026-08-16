@@ -42,4 +42,5 @@ class TimetableEntry(Base):
     subject = relationship("Subject")
     room = relationship("Room")
     division = relationship("Division")
+    batch = relationship("Batch")
     faculty = relationship("Faculty")

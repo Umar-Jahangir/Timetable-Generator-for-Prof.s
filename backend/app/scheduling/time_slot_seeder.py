@@ -4,9 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.models.time_slot import DayOfWeek, TimeSlot
 
-# Matches the exact grid already seeded for Monday in Phase 2
-# (database/seed/seed_data.sql) and shown in the product wireframes:
-# 6 teaching periods + 1 lunch break, Monday through Saturday.
+# College hours: 08:00–18:00 (Mon–Sat), with lunch 12:00–13:00.
 _DAILY_GRID = [
     (time(8, 0), time(9, 0), 1, False),
     (time(9, 0), time(10, 0), 2, False),
@@ -15,6 +13,9 @@ _DAILY_GRID = [
     (time(12, 0), time(13, 0), 5, True),  # lunch break
     (time(13, 0), time(14, 0), 6, False),
     (time(14, 0), time(15, 0), 7, False),
+    (time(15, 0), time(16, 0), 8, False),
+    (time(16, 0), time(17, 0), 9, False),
+    (time(17, 0), time(18, 0), 10, False),
 ]
 
 _WEEK_DAYS = [
@@ -29,18 +30,19 @@ _WEEK_DAYS = [
 
 def ensure_full_week_time_slots(db: Session) -> int:
     """
-    Idempotently fills in any missing days in the `time_slots` grid.
-    Phase 2's seed data only populated Monday (as a demonstration
-    pattern for the DDL); the optimizer needs a full week to produce a
-    realistic timetable. Returns the number of rows inserted (0 if the
-    week was already complete).
+    Idempotently fills any missing day × period rows in `time_slots`
+    for the college grid (08:00–18:00, Mon–Sat). Returns the number of
+    rows inserted (0 if already complete).
     """
-    existing_days = {row[0] for row in db.query(TimeSlot.day_of_week).distinct().all()}
+    existing = {
+        (row.day_of_week, row.start_time)
+        for row in db.query(TimeSlot.day_of_week, TimeSlot.start_time).all()
+    }
     inserted = 0
     for day in _WEEK_DAYS:
-        if day in existing_days:
-            continue
         for start, end, order, is_break in _DAILY_GRID:
+            if (day, start) in existing:
+                continue
             db.add(
                 TimeSlot(
                     day_of_week=day,

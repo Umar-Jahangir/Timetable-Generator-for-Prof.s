@@ -35,6 +35,8 @@ const CONSTRAINT_TYPES = [
   { value: "max_continuous_hours", label: "Max Continuous Hours" },
   { value: "lab_continuous_hours", label: "Lab Continuous Hours" },
   { value: "online_year", label: "Online Year" },
+  { value: "division_day_off", label: "Division Day Off" },
+  { value: "division_blackout", label: "Division Blackout" },
   { value: "custom", label: "Custom" },
 ] as const;
 

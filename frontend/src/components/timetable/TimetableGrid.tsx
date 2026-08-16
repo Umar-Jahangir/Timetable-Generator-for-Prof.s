@@ -4,10 +4,24 @@ import { palette } from "../../theme/theme";
 import { DayOfWeek, TimetableSlot } from "../../types";
 
 const DAYS: DayOfWeek[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const HOURS = ["8-9", "9-10", "10-11", "11-12", "12-1", "1-2", "2-3"];
+
+/** College hours 08:00–18:00; labels use 24h start for unambiguous matching. */
+const HOURS: { label: string; startHour: number }[] = [
+  { label: "8-9", startHour: 8 },
+  { label: "9-10", startHour: 9 },
+  { label: "10-11", startHour: 10 },
+  { label: "11-12", startHour: 11 },
+  { label: "12-1", startHour: 12 },
+  { label: "1-2", startHour: 13 },
+  { label: "2-3", startHour: 14 },
+  { label: "3-4", startHour: 15 },
+  { label: "4-5", startHour: 16 },
+  { label: "5-6", startHour: 17 },
+];
 
 interface TimetableGridProps {
   slots: TimetableSlot[];
+  showFaculty?: boolean;
 }
 
 const cellColor = (type?: TimetableSlot["type"]) => {
@@ -23,12 +37,9 @@ const cellColor = (type?: TimetableSlot["type"]) => {
   }
 };
 
-// UNCHANGED FROM CRA — no hooks, no routing, no browser APIs.
-const TimetableGrid: React.FC<TimetableGridProps> = ({ slots }) => {
-  const findSlot = (day: DayOfWeek, hour: string) =>
-    slots.find(
-      (s) => s.day === day && `${parseInt(s.startTime)}-${parseInt(s.endTime) || 12}` === hour
-    );
+const TimetableGrid: React.FC<TimetableGridProps> = ({ slots, showFaculty = false }) => {
+  const findSlots = (day: DayOfWeek, startHour: number) =>
+    slots.filter((s) => s.day === day && parseInt(s.startTime, 10) === startHour);
 
   return (
     <Box sx={{ overflowX: "auto" }}>
@@ -46,26 +57,58 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({ slots }) => {
         ))}
 
         {HOURS.map((hour) => (
-          <React.Fragment key={hour}>
-            <HeaderCell dim>{hour}</HeaderCell>
+          <React.Fragment key={hour.label}>
+            <HeaderCell dim>{hour.label}</HeaderCell>
             {DAYS.map((day) => {
-              const slot = findSlot(day, hour);
+              const cellSlots = findSlots(day, hour.startHour);
               return (
                 <Box
-                  key={`${day}-${hour}`}
+                  key={`${day}-${hour.label}`}
                   sx={{
                     border: `1px solid ${palette.divider}`,
                     p: 1,
-                    minHeight: 44,
+                    minHeight: 76,
                     display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    gap: 0.75,
                   }}
                 >
-                  <Typography variant="caption" sx={{ color: cellColor(slot?.type) }}>
-                    {slot?.subject ||
-                      (slot?.type === "break" ? "BREAK" : slot?.type === "free" ? "FREE" : "")}
-                  </Typography>
+                  {cellSlots.length === 0 ? (
+                    <Typography variant="caption" sx={{ color: palette.textDim, textAlign: "center", mt: 2 }}>
+                      —
+                    </Typography>
+                  ) : (
+                    cellSlots.map((slot) => (
+                      <Box
+                        key={slot.id}
+                        sx={{
+                          borderLeft: `2px solid ${cellColor(slot.type)}`,
+                          pl: 0.75,
+                          overflowWrap: "anywhere",
+                        }}
+                      >
+                        <Typography variant="caption" sx={{ color: cellColor(slot.type), display: "block", fontWeight: 700 }}>
+                          {slot.subject ?? slot.type.toUpperCase()}
+                        </Typography>
+                        {slot.division && (
+                          <Typography variant="caption" sx={{ color: palette.accent, display: "block" }}>
+                            {slot.division}
+                          </Typography>
+                        )}
+                        {showFaculty && slot.faculty && (
+                          <Typography variant="caption" sx={{ color: palette.textDim, display: "block" }}>
+                            {slot.faculty}
+                          </Typography>
+                        )}
+                        {slot.room && (
+                          <Typography variant="caption" sx={{ color: palette.textDim, display: "block" }}>
+                            {slot.room}
+                          </Typography>
+                        )}
+                      </Box>
+                    ))
+                  )}
                 </Box>
               );
             })}

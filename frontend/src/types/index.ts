@@ -32,6 +32,7 @@ export interface TimetableSlot {
   type: "lecture" | "lab" | "tutorial" | "break" | "free";
   division?: string;
   room?: string;
+  faculty?: string;
 }
 
 export interface AssistantMessage {

@@ -49,10 +49,11 @@ export interface Subject {
   lectures_per_week: number;
   tutorials_per_week: number;
   lab_hours_per_week: number;
+  is_industrial_elective: boolean;
   is_online: boolean;
 }
 
-export type RoomType = "classroom" | "laboratory";
+export type RoomType = "classroom" | "laboratory" | "tutorial";
 
 export interface Room {
   room_id: number;
@@ -72,11 +73,20 @@ export interface Division {
   is_online: boolean;
 }
 
+export interface Batch {
+  batch_id: number;
+  division_id: number;
+  name: string;
+  strength: number | null;
+}
+
 export type ConstraintType =
   | "faculty_free_hour"
   | "max_continuous_hours"
   | "lab_continuous_hours"
   | "online_year"
+  | "division_day_off"
+  | "division_blackout"
   | "custom";
 
 export interface SchedulingConstraint {
@@ -94,16 +104,23 @@ export interface Assignment {
   subject_id: number;
   faculty_id: number;
   division_id: number;
+  batch_id: number | null;
+  delivery_type: "theory" | "lab" | "tutorial";
   academic_term: string;
+  display_order?: number;
   subject_name: string | null;
   faculty_name: string | null;
   division_name: string | null;
+  division_label: string | null;
+  batch_name: string | null;
 }
 
 export interface AssignmentCreatePayload {
   subject_id: number;
   faculty_id: number;
   division_id: number;
+  batch_id?: number | null;
+  delivery_type: "theory" | "lab" | "tutorial";
   academic_term?: string;
 }
 
@@ -124,9 +141,12 @@ export interface AdminTimetableEntry {
   start_time: string;
   end_time: string;
   entry_type: "lecture" | "lab" | "tutorial" | "break";
+  division_id: number;
   subject_name: string | null;
   faculty_name: string | null;
   division_name: string | null;
+  division_label: string | null;
+  batch_name: string | null;
   room_name: string | null;
 }
 

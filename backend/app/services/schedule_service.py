@@ -20,6 +20,7 @@ def _to_out(entry: TimetableEntry) -> TimetableEntryOut:
         entry_type=entry.entry_type,
         subject_name=entry.subject.name if entry.subject else None,
         division_name=entry.division.name if entry.division else None,
+        batch_name=entry.batch.name if entry.batch else None,
         room_name=entry.room.name if entry.room else None,
     )
 

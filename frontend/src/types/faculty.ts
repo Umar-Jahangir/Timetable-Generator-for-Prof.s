@@ -9,6 +9,7 @@ export interface TimetableEntry {
   entry_type: EntryType;
   subject_name: string | null;
   division_name: string | null;
+  batch_name: string | null;
   room_name: string | null;
 }
 

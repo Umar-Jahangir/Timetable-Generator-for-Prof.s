@@ -1,9 +1,10 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { Box, IconButton, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import EditIcon from "@mui/icons-material/EditOutlined";
 import DeleteIcon from "@mui/icons-material/DeleteOutlined";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import { palette } from "../../theme/theme";
 
 export interface DataTableColumn<T> {
@@ -20,6 +21,9 @@ interface DataTableProps<T> {
   onDelete: (row: T) => void;
   isLoading?: boolean;
   emptyMessage?: string;
+  /** When set, rows can be dragged to reorder. Disabled while searching. */
+  onReorder?: (orderedRows: T[]) => void;
+  reorderDisabled?: boolean;
 }
 
 /**
@@ -36,7 +40,12 @@ export default function DataTable<T>({
   onDelete,
   isLoading,
   emptyMessage = "No records yet.",
+  onReorder,
+  reorderDisabled = false,
 }: DataTableProps<T>) {
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const canReorder = Boolean(onReorder) && !reorderDisabled;
+
   if (isLoading) {
     return (
       <Typography variant="body2" sx={{ color: palette.textDim, py: 2 }}>
@@ -53,11 +62,22 @@ export default function DataTable<T>({
     );
   }
 
+  const moveRow = (from: number, to: number) => {
+    if (!onReorder || from === to || from < 0 || to < 0 || from >= rows.length || to >= rows.length) return;
+    const next = [...rows];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    onReorder(next);
+  };
+
   return (
     <Box sx={{ overflowX: "auto" }}>
       <Table size="small">
         <TableHead>
           <TableRow>
+            {canReorder && (
+              <TableCell sx={{ color: palette.border, borderColor: palette.borderDim, width: 40 }} />
+            )}
             {columns.map((col) => (
               <TableCell
                 key={col.key}
@@ -72,8 +92,33 @@ export default function DataTable<T>({
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((row) => (
-            <TableRow key={getRowId(row)}>
+          {rows.map((row, index) => (
+            <TableRow
+              key={getRowId(row)}
+              draggable={canReorder}
+              onDragStart={() => setDragIndex(index)}
+              onDragOver={(event) => {
+                if (!canReorder) return;
+                event.preventDefault();
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                if (dragIndex === null) return;
+                moveRow(dragIndex, index);
+                setDragIndex(null);
+              }}
+              onDragEnd={() => setDragIndex(null)}
+              sx={{
+                opacity: dragIndex === index ? 0.55 : 1,
+                cursor: canReorder ? "grab" : "default",
+                backgroundColor: dragIndex === index ? palette.surfaceRaised : "transparent",
+              }}
+            >
+              {canReorder && (
+                <TableCell sx={{ color: palette.textDim, borderColor: palette.divider, width: 40 }}>
+                  <DragIndicatorIcon fontSize="small" />
+                </TableCell>
+              )}
               {columns.map((col) => (
                 <TableCell key={col.key} sx={{ color: palette.text, borderColor: palette.divider }}>
                   {col.render(row)}

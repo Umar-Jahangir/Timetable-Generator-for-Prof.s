@@ -14,7 +14,7 @@ from app.scheduling.optimizer import (
     TimeSlotInfo,
     generate_timetable,
 )
-from app.scheduling.constraints import get_blocked_slot_ids
+from app.scheduling.constraints import get_blocked_slot_ids, get_division_blocked_slot_ids
 from app.scheduling.time_slot_seeder import ensure_full_week_time_slots
 
 ACADEMIC_TERM = "2026-ODD"
@@ -30,25 +30,35 @@ class TimetableService:
     def _blocked_slot_ids(self) -> set[int]:
         return get_blocked_slot_ids(self.db)
 
+    def _division_blocked_slot_ids(self) -> dict[int, set[int]]:
+        return get_division_blocked_slot_ids(self.db)
+
     def _build_sessions(self) -> list[SessionRequirement]:
         sessions: list[SessionRequirement] = []
         for a in self.assignments.list_all():
             subject = a.subject
-            for i in range(subject.lectures_per_week):
+            delivery_type = a.delivery_type.value
+            if delivery_type == "theory":
+                session_type, count = "lecture", subject.lectures_per_week
+            elif delivery_type == "tutorial":
+                session_type, count = "tutorial", subject.tutorials_per_week
+            else:
+                # Labs run in two-consecutive-slot blocks.
+                session_type, count = "lab", subject.lab_hours_per_week // 2
+
+            for i in range(count):
                 sessions.append(
-                    SessionRequirement(a.assignment_id, a.subject_id, a.faculty_id, a.division_id, "lecture", i)
-                )
-            for i in range(subject.tutorials_per_week):
-                sessions.append(
-                    SessionRequirement(a.assignment_id, a.subject_id, a.faculty_id, a.division_id, "tutorial", i)
-                )
-            # lab_hours_per_week is hours; each lab session occupies a
-            # 2-consecutive-slot (2-hour) block, so N lab hours -> N//2
-            # lab sessions. An odd leftover hour is dropped (documented
-            # simplification — real lab blocks are always 2 hours).
-            for i in range(subject.lab_hours_per_week // 2):
-                sessions.append(
-                    SessionRequirement(a.assignment_id, a.subject_id, a.faculty_id, a.division_id, "lab", i)
+                    SessionRequirement(
+                        a.assignment_id,
+                        a.subject_id,
+                        a.faculty_id,
+                        a.division_id,
+                        a.batch_id,
+                        a.batch.strength if a.batch else None,
+                        session_type,
+                        subject.is_industrial_elective,
+                        i,
+                    )
                 )
         return sessions
 
@@ -69,6 +79,7 @@ class TimetableService:
             d.division_id: DivisionInfo(d.division_id, d.strength, d.is_online) for d in self.divisions.list_all()
         }
         blocked = self._blocked_slot_ids()
+        division_blocked = self._division_blocked_slot_ids()
 
         if not sessions:
             return {
@@ -82,7 +93,13 @@ class TimetableService:
             }
 
         result: GenerationResult = generate_timetable(
-            sessions, time_slots, rooms, divisions, blocked, time_limit_seconds
+            sessions,
+            time_slots,
+            rooms,
+            divisions,
+            blocked,
+            time_limit_seconds,
+            division_blocked,
         )
 
         entries_created = self._persist(result)
@@ -114,6 +131,7 @@ class TimetableService:
                     TimetableEntry(
                         time_slot_id=slot_id,
                         division_id=e.division_id,
+                        batch_id=e.batch_id,
                         subject_id=e.subject_id,
                         faculty_id=e.faculty_id,
                         room_id=e.room_id,

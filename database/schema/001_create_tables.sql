@@ -27,13 +27,13 @@ CREATE TABLE departments (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 2. academic_years  (FY / SY / TY / Final Year)
+-- 2. academic_years  (FY / SY / SEDA / TY / Final Year)
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS academic_years;
 CREATE TABLE academic_years (
     academic_year_id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    name              VARCHAR(20) NOT NULL,      -- 'FY', 'SY', 'TY', 'Final Year'
-    year_order        TINYINT UNSIGNED NOT NULL, -- 1,2,3,4 — used for sorting/UI
+    name              VARCHAR(20) NOT NULL,      -- 'FY', 'SY', 'SEDA', 'TY', 'Final Year'
+    year_order        TINYINT UNSIGNED NOT NULL, -- used for sorting/UI
     created_at        TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_academic_year_name (name),
     UNIQUE KEY uq_academic_year_order (year_order)
@@ -128,6 +128,7 @@ CREATE TABLE subjects (
     lectures_per_week   TINYINT UNSIGNED NOT NULL DEFAULT 0,
     tutorials_per_week  TINYINT UNSIGNED NOT NULL DEFAULT 0,
     lab_hours_per_week  TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    is_industrial_elective BOOLEAN NOT NULL DEFAULT FALSE,
     is_online           BOOLEAN NOT NULL DEFAULT FALSE,
     created_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at          TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -141,7 +142,7 @@ CREATE TABLE subjects (
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 8. subject_faculty_assignment  (who teaches what, to which division/batch)
+-- 8. subject_faculty_assignment  (who teaches which delivery type to a division/batch)
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS subject_faculty_assignment;
 CREATE TABLE subject_faculty_assignment (
@@ -149,8 +150,10 @@ CREATE TABLE subject_faculty_assignment (
     subject_id      INT UNSIGNED NOT NULL,
     faculty_id      INT UNSIGNED NOT NULL,
     division_id     INT UNSIGNED NOT NULL,
-    batch_id        INT UNSIGNED NULL,        -- set only for lab-batch-specific assignments
+    batch_id        INT UNSIGNED NULL,        -- required for lab/tutorial; NULL for theory
+    delivery_type   ENUM('theory','lab','tutorial') NOT NULL,
     academic_term   VARCHAR(20) NOT NULL,      -- e.g. '2026-ODD'
+    display_order   INT UNSIGNED NOT NULL DEFAULT 0, -- admin drag-and-drop order
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_sfa_subject
         FOREIGN KEY (subject_id) REFERENCES subjects(subject_id)
@@ -164,11 +167,11 @@ CREATE TABLE subject_faculty_assignment (
     CONSTRAINT fk_sfa_batch
         FOREIGN KEY (batch_id) REFERENCES batches(batch_id)
         ON DELETE CASCADE ON UPDATE CASCADE,
-    UNIQUE KEY uq_sfa (subject_id, division_id, batch_id, academic_term)
+    UNIQUE KEY uq_sfa (subject_id, division_id, batch_id, delivery_type, academic_term)
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------
--- 9. rooms  (classrooms + laboratories, discriminated by room_type)
+-- 9. rooms  (classrooms, laboratories, and tutorial rooms)
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS rooms;
 CREATE TABLE rooms (
@@ -176,7 +179,7 @@ CREATE TABLE rooms (
     name         VARCHAR(20) NOT NULL,             -- 'C-304', 'B-205'
     building     VARCHAR(50) NULL,
     capacity     SMALLINT UNSIGNED NOT NULL,
-    room_type    ENUM('classroom', 'laboratory') NOT NULL,
+    room_type    ENUM('classroom', 'laboratory', 'tutorial') NOT NULL,
     is_active    BOOLEAN NOT NULL DEFAULT TRUE,
     created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_room_name (name)
@@ -258,6 +261,8 @@ CREATE TABLE scheduling_constraints (
                         'max_continuous_hours',
                         'lab_continuous_hours',
                         'online_year',
+                        'division_day_off',
+                        'division_blackout',
                         'custom'
                      ) NOT NULL,
     config           JSON NOT NULL,   -- e.g. {"day":"Friday","start":"13:00","end":"14:00"}

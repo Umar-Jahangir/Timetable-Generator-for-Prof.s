@@ -16,6 +16,7 @@ class TimetableEntryRepository:
                 joinedload(TimetableEntry.time_slot),
                 joinedload(TimetableEntry.subject),
                 joinedload(TimetableEntry.division),
+                joinedload(TimetableEntry.batch),
                 joinedload(TimetableEntry.room),
             )
             .filter(TimetableEntry.faculty_id == faculty_id, TimetableEntry.is_active.is_(True))

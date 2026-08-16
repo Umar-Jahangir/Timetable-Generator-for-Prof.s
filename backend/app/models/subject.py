@@ -18,6 +18,7 @@ class Subject(Base):
     lectures_per_week: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     tutorials_per_week: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
     lab_hours_per_week: Mapped[int] = mapped_column(SmallInteger, nullable=False, default=0)
+    is_industrial_elective: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     is_online: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     academic_year = relationship("AcademicYear")

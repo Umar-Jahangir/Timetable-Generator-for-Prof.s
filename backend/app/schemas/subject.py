@@ -12,6 +12,7 @@ class SubjectCreate(BaseModel):
     lectures_per_week: int = Field(default=0, ge=0, le=20)
     tutorials_per_week: int = Field(default=0, ge=0, le=20)
     lab_hours_per_week: int = Field(default=0, ge=0, le=20)
+    is_industrial_elective: bool = False
     is_online: bool = False
 
 
@@ -24,6 +25,7 @@ class SubjectUpdate(BaseModel):
     lectures_per_week: Optional[int] = Field(default=None, ge=0, le=20)
     tutorials_per_week: Optional[int] = Field(default=None, ge=0, le=20)
     lab_hours_per_week: Optional[int] = Field(default=None, ge=0, le=20)
+    is_industrial_elective: Optional[bool] = None
     is_online: Optional[bool] = None
 
 
@@ -37,6 +39,7 @@ class SubjectOut(BaseModel):
     lectures_per_week: int
     tutorials_per_week: int
     lab_hours_per_week: int
+    is_industrial_elective: bool
     is_online: bool
 
     model_config = {"from_attributes": True}

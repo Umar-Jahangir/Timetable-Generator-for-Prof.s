@@ -1,15 +1,20 @@
-from sqlalchemy import ForeignKey, String
+import enum
+
+from sqlalchemy import Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
 
 
+class DeliveryType(str, enum.Enum):
+    theory = "theory"
+    lab = "lab"
+    tutorial = "tutorial"
+
+
 class SubjectFacultyAssignment(Base):
     """Maps to `subject_faculty_assignment` — who teaches what, to which
-    division, for which term. This is the essential input the Phase 6
-    optimizer reads: without it, there's nothing to schedule. Batch-level
-    assignments (lab sub-groups) are out of scope for v1 — `batch_id`
-    stays NULL, meaning every assignment applies to the whole division.
+    division or one of its batches, for a specific delivery type and term.
     """
 
     __tablename__ = "subject_faculty_assignment"
@@ -19,8 +24,11 @@ class SubjectFacultyAssignment(Base):
     faculty_id: Mapped[int] = mapped_column(ForeignKey("faculty.faculty_id"), nullable=False)
     division_id: Mapped[int] = mapped_column(ForeignKey("divisions.division_id"), nullable=False)
     batch_id: Mapped[int | None] = mapped_column(ForeignKey("batches.batch_id"), nullable=True)
+    delivery_type: Mapped[DeliveryType] = mapped_column(Enum(DeliveryType), nullable=False)
     academic_term: Mapped[str] = mapped_column(String(20), nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     subject = relationship("Subject")
     faculty = relationship("Faculty")
     division = relationship("Division")
+    batch = relationship("Batch")

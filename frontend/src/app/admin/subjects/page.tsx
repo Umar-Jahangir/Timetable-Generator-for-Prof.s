@@ -40,6 +40,7 @@ const emptyForm: SubjectFormValues = {
   lectures_per_week: 0,
   tutorials_per_week: 0,
   lab_hours_per_week: 0,
+  is_industrial_elective: false,
   is_online: false,
 };
 
@@ -90,6 +91,7 @@ export default function SubjectManagementPage() {
       lectures_per_week: row.lectures_per_week,
       tutorials_per_week: row.tutorials_per_week,
       lab_hours_per_week: row.lab_hours_per_week,
+      is_industrial_elective: row.is_industrial_elective,
       is_online: row.is_online,
     });
     setDialogOpen(true);
@@ -120,6 +122,7 @@ export default function SubjectManagementPage() {
       label: "L / T / Lab",
       render: (r) => `${r.lectures_per_week} / ${r.tutorials_per_week} / ${r.lab_hours_per_week}`,
     },
+    { key: "industrial", label: "Category", render: (r) => (r.is_industrial_elective ? "Industrial Elective" : "Departmental") },
     { key: "mode", label: "Mode", render: (r) => (r.is_online ? "Online" : "Offline") },
   ];
 
@@ -219,6 +222,16 @@ export default function SubjectManagementPage() {
                 render={({ field }) => <TextField {...field} type="number" label="Lab hrs/wk" fullWidth />}
               />
             </Box>
+            <Controller
+              name="is_industrial_elective"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                  label="Industrial elective (TY only; scheduled 08:00–11:00)"
+                />
+              )}
+            />
             <Controller
               name="is_online"
               control={control}

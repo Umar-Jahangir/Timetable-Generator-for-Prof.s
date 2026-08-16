@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.batch import Batch
 from app.models.division import Division
 from app.repositories.division_repository import DivisionRepository
 from app.repositories.lookup_repository import LookupRepository
@@ -32,7 +33,27 @@ class DivisionService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A division with this year, department, and name already exists.",
             )
-        return self.divisions.create(**payload.model_dump())
+        division = Division(**payload.model_dump())
+        self.db.add(division)
+        self.db.flush()
+
+        # Lab and tutorial sessions are always batch-based. Split the
+        # division as evenly as possible, assigning any remainder to B1/B2.
+        strength = division.strength
+        batch_strengths = [None, None, None] if strength is None else [
+            (strength + 2) // 3,
+            (strength + 1) // 3,
+            strength // 3,
+        ]
+        self.db.add_all(
+            [
+                Batch(division_id=division.division_id, name=f"B{index}", strength=batch_strength)
+                for index, batch_strength in enumerate(batch_strengths, start=1)
+            ]
+        )
+        self.db.commit()
+        self.db.refresh(division)
+        return division
 
     def update_division(self, division_id: int, payload: DivisionUpdate) -> Division:
         division = self.get_division(division_id)

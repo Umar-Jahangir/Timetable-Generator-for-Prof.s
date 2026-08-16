@@ -30,7 +30,7 @@ interface RoomManagementViewProps {
 }
 
 /**
- * Backs both /admin/classrooms and /admin/laboratories — same
+ * Backs classroom, laboratory, and tutorial room admin screens — same
  * underlying `rooms` table and API (GET /admin/rooms?room_type=...),
  * just a fixed `roomType` and a different heading per page. See
  * backend/app/api/v1/routers/admin_rooms.py for why this is one table.
@@ -45,6 +45,7 @@ export default function RoomManagementView({ roomType, title }: RoomManagementVi
   const [editing, setEditing] = useState<Room | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Room | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+  const roomTypeLabel = roomType === "classroom" ? "Classroom" : roomType === "laboratory" ? "Laboratory" : "Tutorial Room";
 
   const emptyForm: RoomFormValues = { name: "", building: "", capacity: 30, room_type: roomType };
 
@@ -108,7 +109,7 @@ export default function RoomManagementView({ roomType, title }: RoomManagementVi
       <ConsolePanel title={title}>
         <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
           <Button variant="contained" color="primary" onClick={openCreate}>
-            [ Add {roomType === "classroom" ? "Classroom" : "Laboratory"} ]
+            [ Add {roomTypeLabel} ]
           </Button>
         </Box>
         <DataTable
@@ -118,12 +119,12 @@ export default function RoomManagementView({ roomType, title }: RoomManagementVi
           onEdit={openEdit}
           onDelete={setDeleteTarget}
           isLoading={isLoading}
-          emptyMessage={`No ${roomType === "classroom" ? "classrooms" : "laboratories"} yet — add one to get started.`}
+          emptyMessage={`No ${roomTypeLabel.toLowerCase()}s yet — add one to get started.`}
         />
       </ConsolePanel>
 
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{editing ? "Edit" : "Add"} {roomType === "classroom" ? "Classroom" : "Laboratory"}</DialogTitle>
+        <DialogTitle>{editing ? "Edit" : "Add"} {roomTypeLabel}</DialogTitle>
         <Box component="form" onSubmit={handleSubmit(onSubmit)}>
           <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {formError && <Alert severity="error">{formError}</Alert>}
@@ -153,7 +154,7 @@ export default function RoomManagementView({ roomType, title }: RoomManagementVi
                 />
               )}
             />
-            {editing && (
+            {editing && roomType !== "tutorial" && (
               <Controller
                 name="room_type"
                 control={control}

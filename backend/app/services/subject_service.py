@@ -1,6 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.academic_year import AcademicYear
 from app.models.subject import Subject
 from app.repositories.lookup_repository import LookupRepository
 from app.repositories.subject_repository import SubjectRepository
@@ -28,6 +29,18 @@ class SubjectService:
         if department_id is not None and not self.lookups.department_exists(department_id):
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown department_id.")
 
+    def _validate_industrial_elective(self, academic_year_id: int, is_industrial_elective: bool) -> None:
+        if not is_industrial_elective:
+            return
+        academic_year = self.db.query(AcademicYear).filter(
+            AcademicYear.academic_year_id == academic_year_id
+        ).first()
+        if not academic_year or academic_year.name != "TY":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Industrial electives can only be assigned to TY subjects.",
+            )
+
     def create_subject(self, payload: SubjectCreate) -> Subject:
         if self.subjects.get_by_code(payload.code):
             raise HTTPException(
@@ -35,11 +48,18 @@ class SubjectService:
                 detail=f"A subject with code '{payload.code}' already exists.",
             )
         self._validate_lookups(payload.academic_year_id, payload.department_id)
+        self._validate_industrial_elective(payload.academic_year_id, payload.is_industrial_elective)
         return self.subjects.create(**payload.model_dump())
 
     def update_subject(self, subject_id: int, payload: SubjectUpdate) -> Subject:
         subject = self.get_subject(subject_id)
         self._validate_lookups(payload.academic_year_id, payload.department_id)
+        self._validate_industrial_elective(
+            payload.academic_year_id or subject.academic_year_id,
+            payload.is_industrial_elective
+            if payload.is_industrial_elective is not None
+            else subject.is_industrial_elective,
+        )
 
         if payload.code is not None and payload.code != subject.code:
             existing = self.subjects.get_by_code(payload.code)

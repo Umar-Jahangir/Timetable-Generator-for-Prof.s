@@ -15,6 +15,7 @@ class TimetableEntryOut(BaseModel):
     entry_type: EntryType
     subject_name: Optional[str] = None
     division_name: Optional[str] = None
+    batch_name: Optional[str] = None
     room_name: Optional[str] = None
 
     model_config = {"from_attributes": True}

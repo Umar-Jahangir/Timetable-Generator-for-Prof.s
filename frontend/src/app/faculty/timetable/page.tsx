@@ -26,7 +26,7 @@ function toGridSlots(entries: TimetableEntry[]): TimetableSlot[] {
     endTime: e.end_time.slice(0, 5),
     subject: e.subject_name,
     type: e.entry_type === "break" ? "break" : e.entry_type,
-    division: e.division_name ?? undefined,
+    division: `${e.division_name ?? ""}${e.batch_name ? ` · ${e.batch_name}` : ""}` || undefined,
     room: e.room_name ?? undefined,
   }));
 }

@@ -6,6 +6,7 @@ import {
   Analytics,
   Assignment,
   AssignmentCreatePayload,
+  Batch,
   DashboardStats,
   Department,
   Division,
@@ -194,6 +195,14 @@ export function useDivisionList() {
   });
 }
 
+export function useDivisionBatches(divisionId: number) {
+  return useQuery({
+    queryKey: ["admin", "divisions", divisionId, "batches"],
+    queryFn: async () => (await api.get<Batch[]>(`/admin/divisions/${divisionId}/batches`)).data,
+    enabled: divisionId > 0,
+  });
+}
+
 export function useCreateDivision() {
   const qc = useQueryClient();
   return useMutation({
@@ -291,6 +300,26 @@ export function useCreateAssignment() {
   return useMutation({
     mutationFn: async (payload: AssignmentCreatePayload) => (await api.post<Assignment>("/admin/assignments", payload)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "assignments"] }),
+  });
+}
+
+export function useUpdateAssignment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ assignment_id, ...payload }: AssignmentCreatePayload & { assignment_id: number }) =>
+      (await api.put<Assignment>(`/admin/assignments/${assignment_id}`, payload)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "assignments"] }),
+  });
+}
+
+export function useReorderAssignments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (assignment_ids: number[]) =>
+      (await api.put<Assignment[]>("/admin/assignments/reorder", { assignment_ids })).data,
+    onSuccess: (data) => {
+      qc.setQueryData(["admin", "assignments"], data);
+    },
   });
 }
 

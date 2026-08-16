@@ -21,11 +21,19 @@ def test_create_list_delete_assignment(admin_headers, client):
         create_resp = client.post(
             "/api/v1/admin/assignments",
             headers=admin_headers,
-            json={"subject_id": 1, "faculty_id": 1, "division_id": division_id},
+        json={"subject_id": 1, "faculty_id": 1, "division_id": division_id, "delivery_type": "theory"},
         )
         assert create_resp.status_code == 201, create_resp.text
         assignment_id = create_resp.json()["assignment_id"]
         assert create_resp.json()["subject_name"] == "Database Management Systems"
+        assert create_resp.json()["division_label"].endswith("-TST-ASSIGN")
+
+        update_resp = client.put(
+            f"/api/v1/admin/assignments/{assignment_id}",
+            headers=admin_headers,
+            json={"subject_id": 1, "faculty_id": 1, "division_id": division_id, "delivery_type": "theory"},
+        )
+        assert update_resp.status_code == 200, update_resp.text
 
         list_resp = client.get("/api/v1/admin/assignments", headers=admin_headers)
         assert any(a["assignment_id"] == assignment_id for a in list_resp.json())
@@ -40,6 +48,6 @@ def test_faculty_cannot_create_assignment(faculty_headers, client):
     resp = client.post(
         "/api/v1/admin/assignments",
         headers=faculty_headers,
-        json={"subject_id": 1, "faculty_id": 1, "division_id": 1},
+        json={"subject_id": 1, "faculty_id": 1, "division_id": 1, "delivery_type": "theory"},
     )
     assert resp.status_code == 403

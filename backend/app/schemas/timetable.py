@@ -22,9 +22,12 @@ class AdminTimetableEntryOut(BaseModel):
     start_time: time
     end_time: time
     entry_type: EntryType
+    division_id: int
     subject_name: Optional[str] = None
     faculty_name: Optional[str] = None
     division_name: Optional[str] = None
+    division_label: Optional[str] = None
+    batch_name: Optional[str] = None
     room_name: Optional[str] = None
 
     model_config = {"from_attributes": True}

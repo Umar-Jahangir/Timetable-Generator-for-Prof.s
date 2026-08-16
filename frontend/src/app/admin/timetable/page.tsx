@@ -1,21 +1,35 @@
 "use client";
 
-import React from "react";
-import { Alert, Box, Button, Chip, Typography } from "@mui/material";
+import React, { useMemo, useState } from "react";
+import { Alert, Box, Button, MenuItem, TextField, Typography } from "@mui/material";
 import ConsolePanel from "../../../components/common/ConsolePanel";
 import StatCard from "../../../components/common/StatCard";
+import TimetableGrid from "../../../components/timetable/TimetableGrid";
 import { palette } from "../../../theme/theme";
-import { useAdminTimetable, useGenerateTimetable } from "../../../hooks/useAdminApi";
+import {
+  useAdminTimetable,
+  useAcademicYears,
+  useDivisionList,
+  useGenerateTimetable,
+} from "../../../hooks/useAdminApi";
 import { AdminTimetableEntry } from "../../../types/admin";
+import { TimetableSlot } from "../../../types";
 
-const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-const TYPE_COLOR: Record<string, string> = {
-  lecture: palette.text,
-  tutorial: palette.textDim,
-  lab: palette.accent,
-  break: palette.textDim,
-};
+function toGridSlots(entries: AdminTimetableEntry[]): TimetableSlot[] {
+  return entries.map((entry) => ({
+    id: String(entry.entry_id),
+    day: entry.day_of_week as TimetableSlot["day"],
+    startTime: entry.start_time.slice(0, 5),
+    endTime: entry.end_time.slice(0, 5),
+    subject: entry.subject_name,
+    type: entry.entry_type,
+    division: `${entry.division_label ?? entry.division_name ?? "—"}${
+      entry.batch_name ? ` · ${entry.batch_name}` : ""
+    }`,
+    faculty: entry.faculty_name ?? undefined,
+    room: entry.room_name ?? undefined,
+  }));
+}
 
 /**
  * CHANGED FROM PHASE 1: was a static placeholder. Now calls the real
@@ -26,14 +40,34 @@ const TYPE_COLOR: Record<string, string> = {
  */
 export default function TimetableGenerationPage() {
   const { data: entries = [], isLoading } = useAdminTimetable();
+  const { data: divisions = [] } = useDivisionList();
+  const { data: academicYears = [] } = useAcademicYears();
   const generate = useGenerateTimetable();
+  const [divisionFilter, setDivisionFilter] = useState<number | "all">("all");
 
-  const grouped = DAYS.map((day) => ({
-    day,
-    entries: entries
-      .filter((e) => e.day_of_week === day)
-      .sort((a, b) => a.start_time.localeCompare(b.start_time)),
-  }));
+  const divisionOptions = useMemo(() => {
+    return [...divisions]
+      .map((d) => {
+        const year = academicYears.find((y) => y.academic_year_id === d.academic_year_id);
+        return {
+          division_id: d.division_id,
+          label: `${year?.name ?? "Year"}-${d.name}`,
+          yearOrder: year?.year_order ?? 99,
+          name: d.name,
+        };
+      })
+      .sort((a, b) => a.yearOrder - b.yearOrder || a.name.localeCompare(b.name));
+  }, [divisions, academicYears]);
+
+  const filteredEntries = useMemo(() => {
+    if (divisionFilter === "all") return entries;
+    return entries.filter((e) => e.division_id === divisionFilter);
+  }, [entries, divisionFilter]);
+
+  const selectedLabel =
+    divisionFilter === "all"
+      ? "all divisions"
+      : divisionOptions.find((d) => d.division_id === divisionFilter)?.label ?? "selected division";
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -75,7 +109,33 @@ export default function TimetableGenerationPage() {
         )}
       </ConsolePanel>
 
-      <ConsolePanel title="Current Timetable (all divisions)">
+      <ConsolePanel title={`Current Timetable (${selectedLabel})`}>
+        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center", mb: 2 }}>
+          <TextField
+            select
+            size="small"
+            label="Division"
+            value={divisionFilter === "all" ? "all" : String(divisionFilter)}
+            onChange={(e) => {
+              const value = e.target.value;
+              setDivisionFilter(value === "all" ? "all" : Number(value));
+            }}
+            sx={{ minWidth: 220 }}
+          >
+            <MenuItem value="all">All divisions</MenuItem>
+            {divisionOptions.map((d) => (
+              <MenuItem key={d.division_id} value={String(d.division_id)}>
+                {d.label}
+              </MenuItem>
+            ))}
+          </TextField>
+          {!isLoading && entries.length > 0 && (
+            <Typography variant="caption" sx={{ color: palette.textDim }}>
+              Showing {filteredEntries.length} of {entries.length} entries
+            </Typography>
+          )}
+        </Box>
+
         {isLoading && (
           <Typography variant="body2" sx={{ color: palette.textDim }}>
             Loading...
@@ -87,51 +147,14 @@ export default function TimetableGenerationPage() {
             Subject-Faculty Assignment exists first (Admin → Assignments).
           </Typography>
         )}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {grouped
-            .filter((g) => g.entries.length > 0)
-            .map((g) => (
-              <Box key={g.day}>
-                <Typography variant="caption" sx={{ color: palette.border, letterSpacing: 1 }}>
-                  {g.day.toUpperCase()}
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", mt: 0.5 }}>
-                  {g.entries.map((e: AdminTimetableEntry) => (
-                    <Box
-                      key={e.entry_id}
-                      sx={{
-                        display: "flex",
-                        gap: 2,
-                        alignItems: "center",
-                        py: 0.75,
-                        borderBottom: `1px solid ${palette.divider}`,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      <Typography variant="body2" sx={{ color: palette.textDim, minWidth: 110 }}>
-                        {e.start_time.slice(0, 5)}–{e.end_time.slice(0, 5)}
-                      </Typography>
-                      <Chip size="small" label={e.entry_type} sx={{ color: TYPE_COLOR[e.entry_type] }} variant="outlined" />
-                      <Typography variant="body2" sx={{ color: palette.text }}>
-                        {e.subject_name}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: palette.accent }}>
-                        {e.division_name}
-                      </Typography>
-                      <Typography variant="body2" sx={{ color: palette.textDim }}>
-                        {e.faculty_name}
-                      </Typography>
-                      {e.room_name && (
-                        <Typography variant="body2" sx={{ color: palette.textDim }}>
-                          {e.room_name}
-                        </Typography>
-                      )}
-                    </Box>
-                  ))}
-                </Box>
-              </Box>
-            ))}
-        </Box>
+        {!isLoading && entries.length > 0 && filteredEntries.length === 0 && (
+          <Typography variant="body2" sx={{ color: palette.textDim }}>
+            No classes scheduled for this division.
+          </Typography>
+        )}
+        {!isLoading && filteredEntries.length > 0 && (
+          <TimetableGrid slots={toGridSlots(filteredEntries)} showFaculty />
+        )}
       </ConsolePanel>
     </Box>
   );

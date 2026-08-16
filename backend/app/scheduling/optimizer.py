@@ -39,7 +39,10 @@ class SessionRequirement:
     subject_id: int
     faculty_id: int
     division_id: int
+    batch_id: int | None
+    audience_strength: int | None
     session_type: str  # "lecture" | "tutorial" | "lab"
+    is_industrial_elective: bool
     occurrence: int  # 0-based index among sessions of this type for this assignment
 
 
@@ -77,6 +80,7 @@ class GeneratedEntry:
     subject_id: int
     faculty_id: int
     division_id: int
+    batch_id: int | None
     session_type: str
     time_slot_id: int
     second_time_slot_id: int | None
@@ -98,24 +102,35 @@ def _build_candidates(
     rooms: list[RoomInfo],
     division: DivisionInfo,
     blocked_slot_ids: set[int],
+    division_blocked_slot_ids: set[int],
 ) -> list[Candidate]:
     """All legal (time_slot[, second_slot], room) combinations for one
     session, before considering clashes with other sessions (those are
     handled globally by the CP-SAT constraints, not filtered here)."""
 
-    usable_slots = [s for s in time_slots if s.time_slot_id not in blocked_slot_ids]
+    usable_slots = [
+        s
+        for s in time_slots
+        if s.time_slot_id not in blocked_slot_ids and s.time_slot_id not in division_blocked_slot_ids
+    ]
+    if session.is_industrial_elective:
+        # TY industrial electives run in the protected morning window:
+        # theory at 08:00–09:00, and lab blocks at 09:00–11:00.
+        required_order = 2 if session.session_type == "lab" else 1
+        usable_slots = [s for s in usable_slots if s.slot_order == required_order]
 
     if division.is_online:
         candidate_rooms: list[RoomInfo | None] = [None]
     elif session.session_type == "lab":
-        # Labs are physically sized for a batch (sub-group), not the
-        # whole division — but batch-level scheduling isn't modeled in
-        # v1 (see module docstring), so capacity isn't filtered against
-        # the full division strength here. Filtering by full division
-        # size would make nearly every lab room "too small" and labs
-        # would almost never get scheduled, which doesn't reflect how
-        # labs actually work in practice.
-        candidate_rooms = [r for r in rooms if r.room_type == "laboratory"]
+        candidate_rooms = [
+            r for r in rooms if r.room_type == "laboratory"
+            and (session.audience_strength is None or r.capacity >= session.audience_strength)
+        ]
+    elif session.session_type == "tutorial":
+        candidate_rooms = [
+            r for r in rooms if r.room_type == "tutorial"
+            and (session.audience_strength is None or r.capacity >= session.audience_strength)
+        ]
     else:
         candidate_rooms = [
             r for r in rooms if r.room_type == "classroom" and (division.strength is None or r.capacity >= division.strength)
@@ -159,9 +174,11 @@ def generate_timetable(
     divisions: dict[int, DivisionInfo],
     blocked_slot_ids: set[int],
     time_limit_seconds: float = 15.0,
+    division_blocked_slot_ids: dict[int, set[int]] | None = None,
 ) -> GenerationResult:
     start = perf_counter()
     model = cp_model.CpModel()
+    division_blocked_slot_ids = division_blocked_slot_ids or {}
 
     # session_index -> {candidate_index: BoolVar}
     session_vars: list[dict[int, cp_model.IntVar]] = []
@@ -169,7 +186,14 @@ def generate_timetable(
 
     for i, session in enumerate(sessions):
         division = divisions[session.division_id]
-        candidates = _build_candidates(session, time_slots, rooms, division, blocked_slot_ids)
+        candidates = _build_candidates(
+            session,
+            time_slots,
+            rooms,
+            division,
+            blocked_slot_ids,
+            division_blocked_slot_ids.get(session.division_id, set()),
+        )
         session_candidates.append(candidates)
         vars_for_session = {
             j: model.NewBoolVar(f"s{i}_c{j}") for j in range(len(candidates))
@@ -191,14 +215,18 @@ def generate_timetable(
     # pair, at most one chosen candidate may occupy that slot.
     faculty_slot_vars: dict[tuple[int, int], list[cp_model.IntVar]] = {}
     room_slot_vars: dict[tuple[int, int], list[cp_model.IntVar]] = {}
-    division_slot_vars: dict[tuple[int, int], list[cp_model.IntVar]] = {}
+    theory_slot_vars: dict[tuple[int, int], list[cp_model.IntVar]] = {}
+    batch_slot_vars: dict[tuple[int, int], list[cp_model.IntVar]] = {}
 
     for i, session in enumerate(sessions):
         for j, candidate in enumerate(session_candidates[i]):
             var = session_vars[i][j]
             for slot_id in slot_ids_for(candidate):
                 faculty_slot_vars.setdefault((session.faculty_id, slot_id), []).append(var)
-                division_slot_vars.setdefault((session.division_id, slot_id), []).append(var)
+                if session.batch_id is None:
+                    theory_slot_vars.setdefault((session.division_id, slot_id), []).append(var)
+                else:
+                    batch_slot_vars.setdefault((session.batch_id, slot_id), []).append(var)
                 if candidate.room_id is not None:
                     room_slot_vars.setdefault((candidate.room_id, slot_id), []).append(var)
 
@@ -208,9 +236,28 @@ def generate_timetable(
     for var_list in room_slot_vars.values():
         if len(var_list) > 1:
             model.Add(sum(var_list) <= 1)
-    for var_list in division_slot_vars.values():
+    for var_list in batch_slot_vars.values():
         if len(var_list) > 1:
             model.Add(sum(var_list) <= 1)
+    # A theory session occupies the entire division. It cannot overlap
+    # any batch session, while different batches may run in parallel.
+    for (division_id, slot_id), theory_vars in theory_slot_vars.items():
+        if len(theory_vars) > 1:
+            model.Add(sum(theory_vars) <= 1)
+        for (batch_id, batch_slot), _ in batch_slot_vars.items():
+            if batch_slot == slot_id:
+                # Batch ids are unique, but the division relationship is
+                # carried by its session rather than the raw identifier.
+                matching_batch_vars = [
+                    var
+                    for i, session in enumerate(sessions)
+                    if session.batch_id == batch_id and session.division_id == division_id
+                    for j, candidate in enumerate(session_candidates[i])
+                    if slot_id in slot_ids_for(candidate)
+                    for var in [session_vars[i][j]]
+                ]
+                if matching_batch_vars:
+                    model.Add(sum(theory_vars + matching_batch_vars) <= 1)
 
     # Objective: schedule as many required sessions as possible.
     all_vars = [v for vars_for_session in session_vars for v in vars_for_session.values()]
@@ -240,6 +287,7 @@ def generate_timetable(
                         subject_id=session.subject_id,
                         faculty_id=session.faculty_id,
                         division_id=session.division_id,
+                        batch_id=session.batch_id,
                         session_type=session.session_type,
                         time_slot_id=candidate.time_slot_id,
                         second_time_slot_id=candidate.second_time_slot_id,

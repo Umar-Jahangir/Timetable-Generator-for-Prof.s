@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.v1.deps import require_role
 from app.db.session import get_db
+from app.models.division import Division
 from app.models.faculty import Faculty
 from app.models.timetable_entry import TimetableEntry
 from app.models.user import User, UserRole
@@ -12,6 +13,13 @@ from app.services.timetable_service import ACADEMIC_TERM, TimetableService
 router = APIRouter(prefix="/admin/timetable", tags=["Admin - Timetable"])
 
 
+def _division_label(division: Division | None) -> str | None:
+    if division is None:
+        return None
+    year = division.academic_year.name if division.academic_year else "Year"
+    return f"{year}-{division.name}"
+
+
 def _to_out(entry: TimetableEntry) -> AdminTimetableEntryOut:
     return AdminTimetableEntryOut(
         entry_id=entry.entry_id,
@@ -19,9 +27,12 @@ def _to_out(entry: TimetableEntry) -> AdminTimetableEntryOut:
         start_time=entry.time_slot.start_time,
         end_time=entry.time_slot.end_time,
         entry_type=entry.entry_type,
+        division_id=entry.division_id,
         subject_name=entry.subject.name if entry.subject else None,
         faculty_name=entry.faculty.user.name if entry.faculty and entry.faculty.user else None,
         division_name=entry.division.name if entry.division else None,
+        division_label=_division_label(entry.division),
+        batch_name=entry.batch.name if entry.batch else None,
         room_name=entry.room.name if entry.room else None,
     )
 
@@ -52,7 +63,8 @@ def get_timetable(
         .options(
             joinedload(TimetableEntry.time_slot),
             joinedload(TimetableEntry.subject),
-            joinedload(TimetableEntry.division),
+            joinedload(TimetableEntry.division).joinedload(Division.academic_year),
+            joinedload(TimetableEntry.batch),
             joinedload(TimetableEntry.room),
             joinedload(TimetableEntry.faculty).joinedload(Faculty.user),
         )

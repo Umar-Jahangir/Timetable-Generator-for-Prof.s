@@ -3,7 +3,9 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.deps import require_role
 from app.db.session import get_db
+from app.models.batch import Batch
 from app.models.user import User, UserRole
+from app.schemas.batch import BatchOut
 from app.schemas.division import DivisionCreate, DivisionOut, DivisionUpdate
 from app.services.division_service import DivisionService
 
@@ -16,6 +18,21 @@ def list_divisions(
     _: User = Depends(require_role(UserRole.admin)),
 ):
     return DivisionService(db).list_divisions()
+
+
+@router.get("/{division_id}/batches", response_model=list[BatchOut])
+def list_division_batches(
+    division_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.admin)),
+):
+    DivisionService(db).get_division(division_id)
+    return (
+        db.query(Batch)
+        .filter(Batch.division_id == division_id)
+        .order_by(Batch.name)
+        .all()
+    )
 
 
 @router.post("", response_model=DivisionOut, status_code=status.HTTP_201_CREATED)

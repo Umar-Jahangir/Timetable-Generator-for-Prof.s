@@ -9,10 +9,11 @@ from app.db.session import Base
 class RoomType(str, enum.Enum):
     classroom = "classroom"
     laboratory = "laboratory"
+    tutorial = "tutorial"
 
 
 class Room(Base):
-    """Maps to the `rooms` table — classrooms and labs share one table,
+    """Maps to the `rooms` table — classrooms, labs, and tutorial rooms share one table,
     discriminated by `room_type` (see database/docs/er-diagram.md for why)."""
 
     __tablename__ = "rooms"
