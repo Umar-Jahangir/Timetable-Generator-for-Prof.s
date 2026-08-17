@@ -81,6 +81,7 @@ export default function AssistantPage() {
         room_id: rec.room_id,
         request_type: requestType,
         score: rec.score,
+        scheduled_date: rec.scheduled_date,
       });
       setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, confirmed: true } : m)));
     } catch (err: unknown) {
@@ -122,6 +123,7 @@ export default function AssistantPage() {
                   <Row label="Class" value={m.recommendation.division} />
                   <Row label="Subject" value={m.recommendation.subject} />
                   <Row label="Day" value={m.recommendation.day} />
+                  <Row label="Date" value={m.recommendation.scheduled_date} />
                   <Row label="Time" value={`${m.recommendation.start_time} - ${m.recommendation.end_time}`} />
                   <Row label="Room" value={m.recommendation.room} />
 

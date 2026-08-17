@@ -3,8 +3,10 @@ import api from "../lib/api";
 import {
   DivisionLookup,
   FacultyNotification,
+  FreeRoomsResponse,
   LectureRequestCreatePayload,
   LectureRequestRecord,
+  RoomReservationPayload,
   SubjectLookup,
   TimetableEntry,
   Workload,
@@ -67,6 +69,32 @@ export function useFacultyDivisionLookup() {
   return useQuery({
     queryKey: ["faculty", "lookups", "divisions"],
     queryFn: async () => (await api.get<DivisionLookup[]>("/faculty/lookups/divisions")).data,
+  });
+}
+
+// ---------- Date-specific free rooms / reservations ----------
+
+export function useFreeRooms(reservationDate: string) {
+  return useQuery({
+    queryKey: ["faculty", "free-rooms", reservationDate],
+    queryFn: async () =>
+      (await api.get<FreeRoomsResponse>("/faculty/free-rooms", { params: { scheduled_date: reservationDate } }))
+        .data,
+    enabled: Boolean(reservationDate),
+  });
+}
+
+export function useReserveRoom() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (payload: RoomReservationPayload) =>
+      (await api.post<LectureRequestRecord>("/faculty/free-rooms/reserve", payload)).data,
+    onSuccess: (_, payload) => {
+      queryClient.invalidateQueries({ queryKey: ["faculty", "free-rooms", payload.scheduled_date] });
+      queryClient.invalidateQueries({ queryKey: ["faculty", "lecture-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "lecture-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "dashboard"] });
+    },
   });
 }
 

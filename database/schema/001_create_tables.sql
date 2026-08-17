@@ -215,6 +215,7 @@ CREATE TABLE timetable_entries (
     entry_type      ENUM('lecture','lab','tutorial','break') NOT NULL DEFAULT 'lecture',
     is_extra        BOOLEAN NOT NULL DEFAULT FALSE,  -- approved extra / ad-hoc lecture
     academic_term   VARCHAR(20) NOT NULL,
+    scheduled_date  DATE NULL,                       -- set for one-time extra/replacement lectures
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,   -- soft-delete on reschedule
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -308,6 +309,7 @@ CREATE TABLE lecture_requests (
     recommendation_score      DECIMAL(5,2) NULL,     -- 0.00 - 100.00
     status                    ENUM('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
     requested_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    scheduled_date            DATE NULL,             -- required for one-time reservations
     resolved_at                TIMESTAMP NULL,
     rejection_reason          VARCHAR(500) NULL,
     CONSTRAINT fk_request_faculty

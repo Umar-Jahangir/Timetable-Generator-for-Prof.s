@@ -19,6 +19,7 @@ from app.api.v1.routers import (
     auth,
     faculty,
     faculty_assistant,
+    faculty_free_rooms,
     faculty_lecture_requests,
     faculty_lookups,
     faculty_notifications,
@@ -68,6 +69,7 @@ app.include_router(faculty_notifications.router, prefix=settings.API_V1_PREFIX)
 app.include_router(faculty_lookups.router, prefix=settings.API_V1_PREFIX)
 app.include_router(faculty_lecture_requests.router, prefix=settings.API_V1_PREFIX)
 app.include_router(faculty_assistant.router, prefix=settings.API_V1_PREFIX)
+app.include_router(faculty_free_rooms.router, prefix=settings.API_V1_PREFIX)
 
 
 @app.get("/", tags=["Health"])

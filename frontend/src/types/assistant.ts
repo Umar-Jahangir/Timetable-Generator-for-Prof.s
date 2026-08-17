@@ -9,12 +9,14 @@ export interface AssistantRecommendation {
   day: string;
   start_time: string;
   end_time: string;
+  scheduled_date: string;
   room: string;
   room_id: number;
   time_slot_id: number;
   subject_id: number;
   division_id: number;
   score: number;
+  scheduled_date: string;
   reasons: AssistantReason[];
 }
 

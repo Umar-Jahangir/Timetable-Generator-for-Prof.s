@@ -55,7 +55,12 @@ export default function TodaySchedulePage() {
     // See admin/divisions/page.tsx for why this cast is needed (Zod v4
     // z.coerce vs. react-hook-form's Resolver type).
     resolver: zodResolver(lectureRequestSchema) as Resolver<LectureRequestFormValues>,
-    defaultValues: { subject_id: 0, division_id: 0, request_type: "extra" },
+    defaultValues: {
+      subject_id: 0,
+      division_id: 0,
+      request_type: "extra",
+      scheduled_date: new Date().toLocaleDateString("en-CA"),
+    },
   });
 
   const onSubmit = async (values: LectureRequestFormValues) => {
@@ -195,6 +200,22 @@ export default function TodaySchedulePage() {
                     </MenuItem>
                   ))}
                 </TextField>
+              )}
+            />
+            <Controller
+              name="scheduled_date"
+              control={control}
+              render={({ field }) => (
+                <TextField
+                  {...field}
+                  type="date"
+                  label="Date"
+                  fullWidth
+                  InputLabelProps={{ shrink: true }}
+                  inputProps={{ min: new Date().toLocaleDateString("en-CA") }}
+                  error={!!errors.scheduled_date}
+                  helperText={errors.scheduled_date?.message || "Extra lectures are one-time and do not repeat weekly."}
+                />
               )}
             />
             <Typography variant="caption" sx={{ color: palette.textDim }}>

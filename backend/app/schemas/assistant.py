@@ -1,3 +1,4 @@
+from datetime import date
 from typing import Any, Optional
 
 from pydantic import BaseModel
@@ -27,12 +28,14 @@ class RecommendationOut(BaseModel):
     day: str
     start_time: str
     end_time: str
+    scheduled_date: date
     room: str
     room_id: int
     time_slot_id: int
     subject_id: int
     division_id: int
     score: int
+    scheduled_date: date
     reasons: list[ReasonOut]
 
 

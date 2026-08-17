@@ -1,9 +1,12 @@
 from fastapi import HTTPException, status
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from datetime import datetime, timezone
 
 from app.models.lecture_request import LectureRequest, RequestStatus
+from app.models.room import RoomType
+from app.models.time_slot import TimeSlot
 from app.models.timetable_entry import EntryType, TimetableEntry
 from app.repositories.faculty_repository import FacultyRepository
 from app.repositories.lecture_request_repository import LectureRequestRepository
@@ -33,6 +36,7 @@ class LectureRequestService:
             division_id=payload.division_id,
             request_type=payload.request_type,
             original_entry_id=payload.original_entry_id,
+            scheduled_date=payload.scheduled_date,
         )
 
     def list_own_requests(self, user_id: int) -> list[LectureRequest]:
@@ -89,39 +93,86 @@ class LectureRequestService:
         # The recommendation may have become unavailable while pending.
         # Check all clashes immediately before the approval creates its
         # timetable entry.
-        conflict = (
-            self.db.query(TimetableEntry.entry_id)
-            .filter(
-                TimetableEntry.is_active.is_(True),
-                TimetableEntry.time_slot_id == request.recommended_time_slot_id,
-                (
-                    (TimetableEntry.faculty_id == request.faculty_id)
-                    | (TimetableEntry.division_id == request.division_id)
-                    | (TimetableEntry.room_id == request.recommended_room_id)
-                ),
+        date_conflict_filter = (
+            or_(
+                TimetableEntry.scheduled_date.is_(None),
+                TimetableEntry.scheduled_date == request.scheduled_date,
             )
-            .first()
+            if request.scheduled_date is not None
+            else TimetableEntry.scheduled_date.is_(None)
         )
+        def has_conflict(time_slot_id: int) -> bool:
+            return bool(
+                self.db.query(TimetableEntry.entry_id)
+                .filter(
+                    TimetableEntry.is_active.is_(True),
+                    TimetableEntry.time_slot_id == time_slot_id,
+                    date_conflict_filter,
+                    (
+                        (TimetableEntry.faculty_id == request.faculty_id)
+                        | (TimetableEntry.division_id == request.division_id)
+                        | (TimetableEntry.room_id == request.recommended_room_id)
+                    ),
+                )
+                .first()
+            )
+
+        conflict = has_conflict(request.recommended_time_slot_id)
         if conflict:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="The recommended slot was taken while this request was pending. Reject it or ask the faculty to submit a new request.",
             )
 
-        entry = TimetableEntry(
+        entries = [TimetableEntry(
             time_slot_id=request.recommended_time_slot_id,
             division_id=request.division_id,
             subject_id=request.subject_id,
             faculty_id=request.faculty_id,
             room_id=request.recommended_room_id,
-            entry_type=EntryType.lecture,
+            entry_type=(
+                EntryType.lab
+                if request.recommended_room and request.recommended_room.room_type == RoomType.laboratory
+                else EntryType.lecture
+            ),
             is_extra=True,
             academic_term="2026-ODD",
+            scheduled_date=request.scheduled_date,
             is_active=True,
-        )
+        )]
+        if request.recommended_room and request.recommended_room.room_type == RoomType.laboratory:
+            first_slot = request.recommended_time_slot
+            second_slot = (
+                self.db.query(TimeSlot)
+                .filter(
+                    TimeSlot.day_of_week == first_slot.day_of_week,
+                    TimeSlot.slot_order == first_slot.slot_order + 1,
+                    TimeSlot.is_break.is_(False),
+                )
+                .first()
+            )
+            if not second_slot or has_conflict(second_slot.time_slot_id):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="The laboratory does not have two consecutive free hours for this request.",
+                )
+            entries.append(
+                TimetableEntry(
+                    time_slot_id=second_slot.time_slot_id,
+                    division_id=request.division_id,
+                    subject_id=request.subject_id,
+                    faculty_id=request.faculty_id,
+                    room_id=request.recommended_room_id,
+                    entry_type=EntryType.lab,
+                    is_extra=True,
+                    academic_term="2026-ODD",
+                    scheduled_date=request.scheduled_date,
+                    is_active=True,
+                )
+            )
         request.status = RequestStatus.approved
         request.resolved_at = datetime.now(timezone.utc)
-        self.db.add(entry)
+        self.db.add_all(entries)
         self.db.commit()
         self.db.refresh(request)
         resolved = self.requests.get_by_id(request.request_id)

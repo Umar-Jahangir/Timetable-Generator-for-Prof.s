@@ -42,6 +42,7 @@ export interface LectureRequestRecord {
   request_type: LectureRequestType;
   status: LectureRequestStatus;
   requested_at: string;
+  scheduled_date: string | null;
   resolved_at: string | null;
   rejection_reason: string | null;
   recommended_time_slot_id: number | null;
@@ -56,10 +57,38 @@ export interface LectureRequestRecord {
   faculty_name: string | null;
 }
 
+export interface FreeRoom {
+  room_id: number;
+  room_name: string;
+  room_type: "classroom" | "laboratory" | "tutorial";
+  capacity: number;
+  time_slot_id: number;
+  start_time: string;
+  end_time: string;
+  slot_order: number;
+  is_one_hour_lab: boolean;
+}
+
+export interface FreeRoomsResponse {
+  date: string;
+  day: string;
+  rooms_by_slot: FreeRoom[];
+}
+
+export interface RoomReservationPayload {
+  room_id: number;
+  time_slot_id: number;
+  scheduled_date: string;
+  subject_id: number;
+  division_id: number;
+  request_type?: "extra" | "replacement";
+}
+
 export interface LectureRequestCreatePayload {
   subject_id: number;
   division_id: number;
   request_type: LectureRequestType;
+  scheduled_date: string;
   original_entry_id?: number;
 }
 

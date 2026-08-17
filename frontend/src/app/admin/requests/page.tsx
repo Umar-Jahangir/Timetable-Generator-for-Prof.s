@@ -80,6 +80,11 @@ export default function LectureRequestsPage() {
               <Typography variant="caption" sx={{ color: palette.textDim }}>
                 Requested {new Date(r.requested_at).toLocaleString()}
               </Typography>
+              {r.scheduled_date && (
+                <Typography variant="caption" sx={{ color: palette.warning, display: "block", mt: 0.5 }}>
+                  One-time date: {r.scheduled_date}
+                </Typography>
+              )}
               {r.recommended_day && (
                 <Typography variant="caption" sx={{ color: palette.accent, display: "block", mt: 0.5 }}>
                   Recommended: {r.recommended_day} · {r.recommended_start_time}–{r.recommended_end_time}

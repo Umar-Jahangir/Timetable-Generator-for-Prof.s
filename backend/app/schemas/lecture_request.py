@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel
@@ -11,6 +11,7 @@ class LectureRequestCreate(BaseModel):
     division_id: int
     request_type: RequestType
     original_entry_id: Optional[int] = None  # set for "replacement" requests
+    scheduled_date: Optional[date] = None
 
 
 class LectureRequestOut(BaseModel):
@@ -21,6 +22,7 @@ class LectureRequestOut(BaseModel):
     request_type: RequestType
     status: RequestStatus
     requested_at: datetime
+    scheduled_date: Optional[date] = None
     resolved_at: Optional[datetime]
     rejection_reason: Optional[str] = None
     recommended_time_slot_id: Optional[int] = None

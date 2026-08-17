@@ -60,7 +60,7 @@ class ScheduleService:
             # Sunday isn't a modeled teaching day in this schema (see
             # Phase 2's time_slots enum) — no classes, not an error.
             return []
-        entries = self.entries.list_for_faculty(faculty_id, day=today)
+        entries = self.entries.list_for_faculty(faculty_id, day=today, scheduled_date=datetime.now().date())
         return [_to_out(e) for e in entries]
 
     def get_weekly_timetable(self, user_id: int) -> list[TimetableEntryOut]:

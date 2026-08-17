@@ -1,4 +1,5 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo
 from typing import Optional
 
 from fastapi import HTTPException, status
@@ -27,6 +28,8 @@ from app.schemas.assistant import (
     ReasonOut,
     RecommendationOut,
 )
+from app.schemas.free_rooms import RoomReservationCreate
+from app.services.room_availability_service import RoomAvailabilityService
 from app.services.schedule_service import ScheduleService
 
 ACADEMIC_TERM = "2026-ODD"
@@ -107,6 +110,7 @@ class AssistantService:
             day=sc.candidate.day_of_week,
             start_time=sc.candidate.start_time,
             end_time=sc.candidate.end_time,
+            scheduled_date=self._next_occurrence(sc.candidate.day_of_week, sc.candidate.start_time),
             room=sc.candidate.room_name,
             room_id=sc.candidate.room_id,
             time_slot_id=sc.candidate.time_slot_id,
@@ -115,6 +119,18 @@ class AssistantService:
             score=sc.score,
             reasons=[ReasonOut(label=c.label, satisfied=c.satisfied) for c in sc.checks],
         )
+
+    @staticmethod
+    def _next_occurrence(day_name: str, start_time: str) -> date:
+        """Next future occurrence in the college timezone, never a past slot."""
+        now = datetime.now(ZoneInfo("Asia/Kolkata"))
+        day_index = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].index(day_name)
+        delta = (day_index - now.weekday()) % 7
+        candidate = now.date() + timedelta(days=delta)
+        start = time.fromisoformat(start_time)
+        if candidate == now.date() and start <= now.time().replace(tzinfo=None):
+            candidate += timedelta(days=7)
+        return candidate
 
     def _build_candidates(
         self, room_type: RoomType, day_filter: Optional[str], time_filter: Optional[str]
@@ -205,8 +221,17 @@ class AssistantService:
                 ),
             )
 
+        matching_assignments = [
+            a for a in assignments if a.subject_id == subject_id and a.division_id == division_id
+        ]
+        wants_lab = "lab" in request.query.lower() or "laboratory" in request.query.lower()
+        wants_tutorial = "tutorial" in request.query.lower()
+        preferred_delivery = (
+            "lab" if wants_lab else "tutorial" if wants_tutorial else "theory"
+        )
         assignment = next(
-            (a for a in assignments if a.subject_id == subject_id and a.division_id == division_id), None
+            (a for a in matching_assignments if a.delivery_type.value == preferred_delivery),
+            matching_assignments[0] if matching_assignments else None,
         )
         if not assignment:
             return AssistantQueryResponse(
@@ -218,7 +243,12 @@ class AssistantService:
         time_range = extract_time_range(request.query)
         time_filter = time_range.start if time_range else None
 
-        candidates = self._build_candidates(RoomType.classroom, day_filter, time_filter)
+        room_type = {
+            "theory": RoomType.classroom,
+            "tutorial": RoomType.tutorial,
+            "lab": RoomType.laboratory,
+        }[assignment.delivery_type.value]
+        candidates = self._build_candidates(room_type, day_filter, time_filter)
         if not candidates:
             return AssistantQueryResponse(
                 intent=intent.value,
@@ -227,10 +257,34 @@ class AssistantService:
 
         faculty_occupied = self._occupied_slot_ids(faculty_id=faculty.faculty_id)
         division_occupied = self._occupied_slot_ids(division_id=division_id)
-        room_occupied = self._room_occupied_map(RoomType.classroom)
+        room_occupied = self._room_occupied_map(room_type)
         blocked = get_blocked_slot_ids(self.db)
         division = self.db.query(Division).filter(Division.division_id == division_id).first()
         min_order, max_order = self._teaching_slot_bounds()
+        next_slot_by_id: dict[int, TimeSlot | None] = {}
+
+        if assignment.delivery_type.value == "lab":
+            all_slots = self.db.query(TimeSlot).filter(TimeSlot.is_break.is_(False)).all()
+            next_slot_by_id = {
+                slot.time_slot_id: next(
+                    (
+                        other
+                        for other in all_slots
+                        if other.day_of_week == slot.day_of_week and other.slot_order == slot.slot_order + 1
+                    ),
+                    None,
+                )
+                for slot in all_slots
+            }
+            candidates = [
+                candidate
+                for candidate in candidates
+                if (next_slot := next_slot_by_id.get(candidate.time_slot_id)) is not None
+                and next_slot.time_slot_id not in faculty_occupied
+                and next_slot.time_slot_id not in division_occupied
+                and next_slot.time_slot_id not in blocked
+                and next_slot.time_slot_id not in room_occupied.get(candidate.room_id, set())
+            ]
 
         ranked = rank_candidates(
             candidates,
@@ -247,17 +301,25 @@ class AssistantService:
         if not ranked:
             return AssistantQueryResponse(
                 intent=intent.value,
-                message="No available slot found — every classroom is either booked or the faculty/division is busy at the times I checked.",
+                message=(
+                    "No available two-hour laboratory block found."
+                    if assignment.delivery_type.value == "lab"
+                    else "No available slot found — every classroom is either booked or the faculty/division is busy at the times I checked."
+                ),
             )
 
         subject = assignment.subject
         division_label = self._division_label(division)
         best = self._to_recommendation_out(ranked[0], subject.name, division_label)
         best.subject_id, best.division_id = subject_id, division_id
+        if assignment.delivery_type.value == "lab":
+            best.end_time = next_slot_by_id[best.time_slot_id].end_time.strftime("%H:%M")
         alternates = []
         for sc in ranked[1:4]:
             alt = self._to_recommendation_out(sc, subject.name, division_label)
             alt.subject_id, alt.division_id = subject_id, division_id
+            if assignment.delivery_type.value == "lab":
+                alt.end_time = next_slot_by_id[alt.time_slot_id].end_time.strftime("%H:%M")
             alternates.append(alt)
 
         return AssistantQueryResponse(
@@ -384,19 +446,18 @@ class AssistantService:
         if not faculty:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Faculty profile not found.")
 
-        # Re-validate before creating the pending request. Admin approval
-        # repeats this check, because the recommendation can become stale
-        # while it waits in the approval queue.
-        faculty_occupied = self._occupied_slot_ids(faculty_id=faculty.faculty_id)
-        division_occupied = self._occupied_slot_ids(division_id=request.division_id)
-        room_occupied = self._occupied_slot_ids(room_id=request.room_id)
-        blocked = get_blocked_slot_ids(self.db)
-
-        if request.time_slot_id in (faculty_occupied | division_occupied | room_occupied | blocked):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="That slot is no longer available — please ask the assistant again for a fresh recommendation.",
-            )
+        # Re-validate with the same date-aware rules used by Free Rooms.
+        RoomAvailabilityService(self.db).validate_reservation(
+            faculty.faculty_id,
+            RoomReservationCreate(
+                room_id=request.room_id,
+                time_slot_id=request.time_slot_id,
+                scheduled_date=request.scheduled_date,
+                subject_id=request.subject_id,
+                division_id=request.division_id,
+                request_type=request.request_type,
+            ),
+        )
 
         lecture_request = LectureRequest(
             faculty_id=faculty.faculty_id,
@@ -406,6 +467,7 @@ class AssistantService:
             recommended_time_slot_id=request.time_slot_id,
             recommended_room_id=request.room_id,
             recommendation_score=request.score,
+            scheduled_date=request.scheduled_date,
             requested_at=datetime.now(timezone.utc),
         )
         self.db.add(lecture_request)

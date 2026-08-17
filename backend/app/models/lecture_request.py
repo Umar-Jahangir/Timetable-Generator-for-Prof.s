@@ -1,7 +1,7 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import DECIMAL, TIMESTAMP, Enum, ForeignKey, String
+from sqlalchemy import DATE, DECIMAL, TIMESTAMP, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -43,6 +43,7 @@ class LectureRequest(Base):
     recommendation_score: Mapped[float | None] = mapped_column(DECIMAL(5, 2), nullable=True)
     status: Mapped[RequestStatus] = mapped_column(Enum(RequestStatus), nullable=False, default=RequestStatus.pending)
     requested_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
+    scheduled_date: Mapped[date | None] = mapped_column(DATE, nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
     rejection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 

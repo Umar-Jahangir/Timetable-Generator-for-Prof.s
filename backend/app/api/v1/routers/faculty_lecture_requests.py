@@ -20,6 +20,7 @@ def _to_out(request: LectureRequest) -> LectureRequestOut:
         request_type=request.request_type,
         status=request.status,
         requested_at=request.requested_at,
+        scheduled_date=request.scheduled_date,
         resolved_at=request.resolved_at,
         rejection_reason=request.rejection_reason,
         recommended_time_slot_id=request.recommended_time_slot_id,

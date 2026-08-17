@@ -1,3 +1,6 @@
+from datetime import date
+
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload
 
 from app.models.division import Division
@@ -9,7 +12,9 @@ class TimetableEntryRepository:
     def __init__(self, db: Session):
         self.db = db
 
-    def list_for_faculty(self, faculty_id: int, day: DayOfWeek | None = None) -> list[TimetableEntry]:
+    def list_for_faculty(
+        self, faculty_id: int, day: DayOfWeek | None = None, scheduled_date: date | None = None
+    ) -> list[TimetableEntry]:
         query = (
             self.db.query(TimetableEntry)
             .join(TimeSlot, TimetableEntry.time_slot_id == TimeSlot.time_slot_id)
@@ -20,7 +25,18 @@ class TimetableEntryRepository:
                 joinedload(TimetableEntry.batch),
                 joinedload(TimetableEntry.room),
             )
-            .filter(TimetableEntry.faculty_id == faculty_id, TimetableEntry.is_active.is_(True))
+            .filter(
+                TimetableEntry.faculty_id == faculty_id,
+                TimetableEntry.is_active.is_(True),
+                (
+                    or_(
+                        TimetableEntry.scheduled_date.is_(None),
+                        TimetableEntry.scheduled_date == scheduled_date,
+                    )
+                    if scheduled_date is not None
+                    else TimetableEntry.scheduled_date.is_(None)
+                ),
+            )
         )
         if day is not None:
             query = query.filter(TimeSlot.day_of_week == day)

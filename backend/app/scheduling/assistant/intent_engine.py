@@ -43,7 +43,9 @@ def detect_intent(query: str) -> Intent:
         return Intent.schedule_replacement_lecture
 
     # 2. Extra lecture.
-    if _contains_any(text, ["extra"]) and _contains_any(text, ["lecture", "class", "session"]):
+    if _contains_any(text, ["extra"]) and _contains_any(
+        text, ["lecture", "class", "session", "lab", "laboratory", "tutorial"]
+    ):
         return Intent.schedule_extra_lecture
 
     # 3. Workload — checked before the room-finding rules since

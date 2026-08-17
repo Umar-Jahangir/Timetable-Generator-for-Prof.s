@@ -1,7 +1,7 @@
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
-from sqlalchemy import TIMESTAMP, Boolean, Enum, ForeignKey, String
+from sqlalchemy import DATE, TIMESTAMP, Boolean, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -36,6 +36,7 @@ class TimetableEntry(Base):
     entry_type: Mapped[EntryType] = mapped_column(Enum(EntryType), nullable=False, default=EntryType.lecture)
     is_extra: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     academic_term: Mapped[str] = mapped_column(String(20), nullable=False)
+    scheduled_date: Mapped[date | None] = mapped_column(DATE, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
 
