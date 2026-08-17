@@ -21,6 +21,7 @@ export const palette = {
   accentDim: "#8a6a3f",
   success: "#5fe3a0",
   danger: "#f26d6d",
+  warning: "#f5d76e", // yellow — extra / ad-hoc lectures
   divider: "#1c2628",
 };
 

@@ -6,47 +6,7 @@ import { useRouter } from "next/navigation";
 import ConsolePanel from "../../components/common/ConsolePanel";
 import { palette } from "../../theme/theme";
 import { useAuth } from "../../hooks/useAuth";
-import { TimetableSlot } from "../../types";
-
-// Mock "today" schedule — replaced by GET /faculty/{id}/today in Phase 5.
-const todaySlots: TimetableSlot[] = [
-  {
-    id: "1",
-    day: "Monday",
-    startTime: "09:00",
-    endTime: "10:00",
-    subject: "DBMS Lecture",
-    type: "lecture",
-    division: "TY-A",
-  },
-  {
-    id: "2",
-    day: "Monday",
-    startTime: "10:00",
-    endTime: "12:00",
-    subject: "DBMS Lab",
-    type: "lab",
-    division: "TY-B",
-  },
-  { id: "3", day: "Monday", startTime: "12:00", endTime: "13:00", subject: null, type: "free" },
-  {
-    id: "4",
-    day: "Monday",
-    startTime: "13:00",
-    endTime: "14:00",
-    subject: "Department Hour",
-    type: "tutorial",
-  },
-  {
-    id: "5",
-    day: "Monday",
-    startTime: "14:00",
-    endTime: "15:00",
-    subject: "AI Lecture",
-    type: "lecture",
-    division: "SY-C",
-  },
-];
+import { useTodaySchedule } from "../../hooks/useFacultyApi";
 
 const QUICK_ACTIONS = [
   { label: "[ View Timetable ]", path: "/faculty/timetable" },
@@ -56,11 +16,17 @@ const QUICK_ACTIONS = [
   { label: "[ Workload ]", path: "/faculty/workload" },
 ];
 
-// CHANGED FROM CRA: useNavigate() -> next/navigation's useRouter().push().
-// Must remain a Client Component because of useAuth() + onClick handlers.
+function subjectLabel(code: string | null, name: string | null, fallback: string) {
+  if (code && name) return `${code} — ${name}`;
+  if (code) return code;
+  if (name) return name;
+  return fallback;
+}
+
 export default function FacultyDashboardPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { data: entries = [], isLoading } = useTodaySchedule();
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -69,29 +35,38 @@ export default function FacultyDashboardPage() {
       </Typography>
 
       <ConsolePanel title="Today's Schedule">
+        {isLoading && (
+          <Typography variant="body2" sx={{ color: palette.textDim }}>
+            Loading...
+          </Typography>
+        )}
+        {!isLoading && entries.length === 0 && (
+          <Typography variant="body2" sx={{ color: palette.textDim }}>
+            No classes scheduled for today.
+          </Typography>
+        )}
         <Box sx={{ display: "flex", flexDirection: "column" }}>
-          {todaySlots.map((slot, idx) => (
+          {entries.map((entry, idx) => (
             <Box
-              key={slot.id}
+              key={entry.entry_id}
               sx={{
                 display: "flex",
                 justifyContent: "space-between",
+                gap: 2,
                 py: 1.25,
-                borderBottom: idx < todaySlots.length - 1 ? `1px solid ${palette.divider}` : "none",
+                borderBottom: idx < entries.length - 1 ? `1px solid ${palette.divider}` : "none",
               }}
             >
               <Typography variant="body2" sx={{ color: palette.textDim, minWidth: 140 }}>
-                {slot.startTime} - {slot.endTime}
+                {entry.start_time.slice(0, 5)} - {entry.end_time.slice(0, 5)}
               </Typography>
-              <Typography
-                variant="body2"
-                sx={{ color: slot.type === "free" ? palette.success : palette.text, flexGrow: 1 }}
-              >
-                {slot.subject || "FREE"}
+              <Typography variant="body2" sx={{ color: palette.text, flexGrow: 1 }}>
+                {subjectLabel(entry.subject_code, entry.subject_name, entry.entry_type)}
               </Typography>
-              {slot.division && (
+              {(entry.division_label || entry.division_name) && (
                 <Typography variant="body2" sx={{ color: palette.accent }}>
-                  {slot.division}
+                  {entry.division_label ?? entry.division_name}
+                  {entry.batch_name ? ` · ${entry.batch_name}` : ""}
                 </Typography>
               )}
             </Box>

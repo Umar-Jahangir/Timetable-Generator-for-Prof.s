@@ -13,8 +13,11 @@ class TimetableEntryOut(BaseModel):
     start_time: time
     end_time: time
     entry_type: EntryType
+    is_extra: bool = False
+    subject_code: Optional[str] = None
     subject_name: Optional[str] = None
     division_name: Optional[str] = None
+    division_label: Optional[str] = None
     batch_name: Optional[str] = None
     room_name: Optional[str] = None
 

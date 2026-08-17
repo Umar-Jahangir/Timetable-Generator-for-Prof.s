@@ -21,6 +21,7 @@ def _to_out(request: LectureRequest) -> LectureRequestOut:
         status=request.status,
         requested_at=request.requested_at,
         resolved_at=request.resolved_at,
+        rejection_reason=request.rejection_reason,
         recommended_time_slot_id=request.recommended_time_slot_id,
         recommended_room_id=request.recommended_room_id,
         recommendation_score=float(request.recommendation_score) if request.recommendation_score is not None else None,

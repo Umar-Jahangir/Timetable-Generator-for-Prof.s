@@ -29,7 +29,9 @@ export interface TimetableSlot {
   startTime: string; // "09:00"
   endTime: string; // "10:00"
   subject: string | null;
+  subjectCode?: string | null;
   type: "lecture" | "lab" | "tutorial" | "break" | "free";
+  isExtra?: boolean;
   division?: string;
   room?: string;
   faculty?: string;

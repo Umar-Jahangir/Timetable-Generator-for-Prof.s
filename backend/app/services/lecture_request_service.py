@@ -10,6 +10,7 @@ from app.repositories.lecture_request_repository import LectureRequestRepository
 from app.repositories.lookup_repository import LookupRepository
 from app.repositories.subject_repository import SubjectRepository
 from app.schemas.lecture_request import LectureRequestCreate
+from app.services.notification_service import NotificationService
 
 
 class LectureRequestService:
@@ -43,7 +44,12 @@ class LectureRequestService:
     def list_pending(self) -> list[LectureRequest]:
         return self.requests.list_pending()
 
-    def resolve_request(self, request_id: int, new_status: RequestStatus) -> LectureRequest:
+    def resolve_request(
+        self,
+        request_id: int,
+        new_status: RequestStatus,
+        rejection_reason: str | None = None,
+    ) -> LectureRequest:
         request = self.requests.get_by_id(request_id)
         if not request:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Request not found.")
@@ -58,13 +64,27 @@ class LectureRequestService:
                 detail="Status must be 'approved' or 'rejected'.",
             )
         if new_status == RequestStatus.rejected:
-            return self.requests.resolve(request, new_status)
+            reason = (rejection_reason or "").strip()
+            if not reason:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="A rejection reason is required.",
+                )
+            request.status = RequestStatus.rejected
+            request.rejection_reason = reason
+            request.resolved_at = datetime.now(timezone.utc)
+            self.db.commit()
+            self.db.refresh(request)
+            self._notify_resolution(request)
+            return self.requests.get_by_id(request.request_id)
 
         # Requests from Today's Schedule do not choose a room/time yet.
         # Keep their existing status-only approval flow; assistant-created
         # requests include a recommendation and are booked below.
         if request.recommended_time_slot_id is None or request.recommended_room_id is None:
-            return self.requests.resolve(request, new_status)
+            resolved = self.requests.resolve(request, new_status)
+            self._notify_resolution(resolved)
+            return resolved
 
         # The recommendation may have become unavailable while pending.
         # Check all clashes immediately before the approval creates its
@@ -95,6 +115,7 @@ class LectureRequestService:
             faculty_id=request.faculty_id,
             room_id=request.recommended_room_id,
             entry_type=EntryType.lecture,
+            is_extra=True,
             academic_term="2026-ODD",
             is_active=True,
         )
@@ -103,4 +124,24 @@ class LectureRequestService:
         self.db.add(entry)
         self.db.commit()
         self.db.refresh(request)
-        return self.requests.get_by_id(request.request_id)
+        resolved = self.requests.get_by_id(request.request_id)
+        self._notify_resolution(resolved)
+        return resolved
+
+    def _notify_resolution(self, request: LectureRequest) -> None:
+        """Create an unread notification for the requesting faculty member."""
+        faculty = self.faculty_repo.get_by_id(request.faculty_id)
+        if not faculty:
+            return
+        subject_name = request.subject.name if request.subject else f"Subject #{request.subject_id}"
+        division_name = request.division.name if request.division else f"Division #{request.division_id}"
+        if request.status == RequestStatus.approved:
+            title = "Lecture request approved"
+            detail = f"Your {request.request_type.value} lecture request for {subject_name} · {division_name} was approved."
+        else:
+            title = "Lecture request rejected"
+            detail = (
+                f"Your {request.request_type.value} lecture request for {subject_name} · {division_name} "
+                f"was rejected. Reason: {request.rejection_reason}"
+            )
+        NotificationService(self.db).notifications.create(faculty.user_id, title, detail)

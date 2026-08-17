@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import DECIMAL, TIMESTAMP, Enum, ForeignKey
+from sqlalchemy import DECIMAL, TIMESTAMP, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -44,6 +44,7 @@ class LectureRequest(Base):
     status: Mapped[RequestStatus] = mapped_column(Enum(RequestStatus), nullable=False, default=RequestStatus.pending)
     requested_at: Mapped[datetime] = mapped_column(TIMESTAMP, nullable=False)
     resolved_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)
+    rejection_reason: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     faculty = relationship("Faculty")
     subject = relationship("Subject")

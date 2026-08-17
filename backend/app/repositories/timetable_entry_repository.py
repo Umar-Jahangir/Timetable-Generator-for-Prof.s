@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.division import Division
 from app.models.time_slot import DayOfWeek, TimeSlot
 from app.models.timetable_entry import TimetableEntry
 
@@ -15,7 +16,7 @@ class TimetableEntryRepository:
             .options(
                 joinedload(TimetableEntry.time_slot),
                 joinedload(TimetableEntry.subject),
-                joinedload(TimetableEntry.division),
+                joinedload(TimetableEntry.division).joinedload(Division.academic_year),
                 joinedload(TimetableEntry.batch),
                 joinedload(TimetableEntry.room),
             )

@@ -273,14 +273,22 @@ export function usePendingLectureRequests() {
   return useQuery({
     queryKey: ["admin", "lecture-requests"],
     queryFn: async () => (await api.get<LectureRequestRecord[]>("/admin/lecture-requests")).data,
+    refetchInterval: 15_000,
   });
 }
 
 export function useResolveLectureRequest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ request_id, status }: { request_id: number; status: "approved" | "rejected" }) =>
-      (await api.put(`/admin/lecture-requests/${request_id}`, { status })).data,
+    mutationFn: async ({
+      request_id,
+      status,
+      rejection_reason,
+    }: {
+      request_id: number;
+      status: "approved" | "rejected";
+      rejection_reason?: string;
+    }) => (await api.put(`/admin/lecture-requests/${request_id}`, { status, rejection_reason })).data,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "lecture-requests"] });
       qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });

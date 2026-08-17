@@ -1,10 +1,12 @@
 "use client";
 
-import React from "react";
-import { Box, Button, Chip, Typography } from "@mui/material";
+import React, { useState } from "react";
+import { Alert, Box, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, TextField, Typography } from "@mui/material";
 import ConsolePanel from "../../../components/common/ConsolePanel";
 import { palette } from "../../../theme/theme";
 import { usePendingLectureRequests, useResolveLectureRequest } from "../../../hooks/useAdminApi";
+import { LectureRequestRecord } from "../../../types/faculty";
+import { getApiErrorMessage } from "../../../lib/errors";
 
 /**
  * New in Phase 5 — not in the original Admin nav from Phase 1, added
@@ -16,6 +18,33 @@ import { usePendingLectureRequests, useResolveLectureRequest } from "../../../ho
 export default function LectureRequestsPage() {
   const { data: requests = [], isLoading } = usePendingLectureRequests();
   const resolve = useResolveLectureRequest();
+  const [rejectTarget, setRejectTarget] = useState<LectureRequestRecord | null>(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [resolveError, setResolveError] = useState<string | null>(null);
+
+  const openReject = (request: LectureRequestRecord) => {
+    setRejectTarget(request);
+    setRejectionReason("");
+    setResolveError(null);
+  };
+
+  const rejectRequest = async () => {
+    if (!rejectTarget || !rejectionReason.trim()) {
+      setResolveError("A reason is required when rejecting a request.");
+      return;
+    }
+    setResolveError(null);
+    try {
+      await resolve.mutateAsync({
+        request_id: rejectTarget.request_id,
+        status: "rejected",
+        rejection_reason: rejectionReason.trim(),
+      });
+      setRejectTarget(null);
+    } catch (err) {
+      setResolveError(getApiErrorMessage(err));
+    }
+  };
 
   return (
     <ConsolePanel title="Lecture Request Approval">
@@ -74,7 +103,7 @@ export default function LectureRequestsPage() {
                 variant="outlined"
                 color="error"
                 disabled={resolve.isPending}
-                onClick={() => resolve.mutate({ request_id: r.request_id, status: "rejected" })}
+                onClick={() => openReject(r)}
               >
                 Reject
               </Button>
@@ -82,6 +111,40 @@ export default function LectureRequestsPage() {
           </Box>
         ))}
       </Box>
+      <Dialog open={Boolean(rejectTarget)} onClose={() => setRejectTarget(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Reject Lecture Request</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          {resolveError && <Alert severity="error">{resolveError}</Alert>}
+          <Typography variant="body2" sx={{ color: palette.textDim }}>
+            Explain why this request cannot be approved. The faculty member will receive this reason in Notifications.
+          </Typography>
+          <TextField
+            autoFocus
+            required
+            label="Reason for rejection"
+            placeholder="e.g. The requested slot conflicts with the scheduled lab."
+            multiline
+            minRows={3}
+            value={rejectionReason}
+            onChange={(event) => setRejectionReason(event.target.value)}
+            error={Boolean(resolveError)}
+            fullWidth
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRejectTarget(null)} disabled={resolve.isPending}>
+            Cancel
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={rejectRequest}
+            disabled={resolve.isPending || !rejectionReason.trim()}
+          >
+            Reject Request
+          </Button>
+        </DialogActions>
+      </Dialog>
     </ConsolePanel>
   );
 }

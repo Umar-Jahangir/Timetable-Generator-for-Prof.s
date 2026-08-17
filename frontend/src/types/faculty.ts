@@ -7,8 +7,11 @@ export interface TimetableEntry {
   start_time: string; // "09:00:00"
   end_time: string;
   entry_type: EntryType;
+  is_extra: boolean;
+  subject_code: string | null;
   subject_name: string | null;
   division_name: string | null;
+  division_label: string | null;
   batch_name: string | null;
   room_name: string | null;
 }
@@ -40,6 +43,7 @@ export interface LectureRequestRecord {
   status: LectureRequestStatus;
   requested_at: string;
   resolved_at: string | null;
+  rejection_reason: string | null;
   recommended_time_slot_id: number | null;
   recommended_room_id: number | null;
   recommendation_score: number | null;

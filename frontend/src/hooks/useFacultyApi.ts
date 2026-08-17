@@ -39,6 +39,7 @@ export function useNotifications() {
   return useQuery({
     queryKey: ["faculty", "notifications"],
     queryFn: async () => (await api.get<FacultyNotification[]>("/faculty/notifications")).data,
+    refetchInterval: 15_000,
   });
 }
 

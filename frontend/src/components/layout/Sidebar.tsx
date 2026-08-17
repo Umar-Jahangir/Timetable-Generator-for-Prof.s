@@ -9,6 +9,7 @@ import { palette } from "../../theme/theme";
 export interface NavItem {
   label: string;
   path: string;
+  hasUnread?: boolean;
 }
 
 interface SidebarProps {
@@ -74,7 +75,23 @@ const Sidebar: React.FC<SidebarProps> = ({ items, brandSubtitle }) => {
             >
               <ListItemText
                 slotProps={{ primary: { sx: { fontSize: 14 } } }}
-                primary={item.label}
+                primary={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    {item.label}
+                    {item.hasUnread && (
+                      <Box
+                        aria-label="Unread items"
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: palette.danger,
+                          boxShadow: `0 0 6px ${palette.danger}`,
+                        }}
+                      />
+                    )}
+                  </Box>
+                }
               />
             </ListItemButton>
           );

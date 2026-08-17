@@ -22,6 +22,7 @@ class LectureRequestOut(BaseModel):
     status: RequestStatus
     requested_at: datetime
     resolved_at: Optional[datetime]
+    rejection_reason: Optional[str] = None
     recommended_time_slot_id: Optional[int] = None
     recommended_room_id: Optional[int] = None
     recommendation_score: Optional[float] = None
@@ -40,3 +41,4 @@ class LectureRequestOut(BaseModel):
 
 class LectureRequestResolve(BaseModel):
     status: RequestStatus  # admin sets to "approved" or "rejected"
+    rejection_reason: Optional[str] = None

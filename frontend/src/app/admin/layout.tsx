@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import Sidebar from "../../components/layout/Sidebar";
 import TopBar from "../../components/layout/TopBar";
 import RequireRole from "../../components/auth/RequireRole";
+import { usePendingLectureRequests } from "../../hooks/useAdminApi";
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/admin" },
@@ -51,11 +52,15 @@ const TITLES: Record<string, string> = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const title = TITLES[pathname] || "Admin";
+  const { data: pendingRequests = [] } = usePendingLectureRequests();
+  const navItems = NAV_ITEMS.map((item) =>
+    item.path === "/admin/requests" ? { ...item, hasUnread: pendingRequests.length > 0 } : item,
+  );
 
   return (
     <RequireRole allowedRoles={["admin"]}>
       <Box sx={{ display: "flex" }}>
-        <Sidebar items={NAV_ITEMS} brandSubtitle="Administrator Console" />
+        <Sidebar items={navItems} brandSubtitle="Administrator Console" />
         <Box sx={{ flexGrow: 1, minHeight: "100vh" }}>
           <TopBar pageTitle={title} />
           <Box sx={{ p: 3 }}>{children}</Box>

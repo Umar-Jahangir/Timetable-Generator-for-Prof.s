@@ -144,7 +144,9 @@ export interface AdminTimetableEntry {
   start_time: string;
   end_time: string;
   entry_type: "lecture" | "lab" | "tutorial" | "break";
+  is_extra: boolean;
   division_id: number;
+  subject_code: string | null;
   subject_name: string | null;
   faculty_name: string | null;
   division_name: string | null;

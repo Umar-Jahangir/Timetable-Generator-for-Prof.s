@@ -3,6 +3,7 @@ from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.models.division import Division
 from app.models.time_slot import DayOfWeek
 from app.models.timetable_entry import TimetableEntry
 from app.repositories.faculty_repository import FacultyRepository
@@ -11,15 +12,28 @@ from app.schemas.schedule import TimetableEntryOut
 from app.schemas.workload import WorkloadOut
 
 
+def _division_label(division: Division | None) -> str | None:
+    if division is None:
+        return None
+    year = division.academic_year.name if division.academic_year else "Year"
+    return f"{year}-{division.name}"
+
+
 def _to_out(entry: TimetableEntry) -> TimetableEntryOut:
+    label = _division_label(entry.division)
     return TimetableEntryOut(
         entry_id=entry.entry_id,
         day_of_week=entry.time_slot.day_of_week,
         start_time=entry.time_slot.start_time,
         end_time=entry.time_slot.end_time,
         entry_type=entry.entry_type,
+        is_extra=bool(entry.is_extra),
+        subject_code=entry.subject.code if entry.subject else None,
         subject_name=entry.subject.name if entry.subject else None,
-        division_name=entry.division.name if entry.division else None,
+        # Faculty UIs display division_name; always send year-prefixed label
+        # (e.g. SY-B) so short codes like "B" are never shown alone.
+        division_name=label,
+        division_label=label,
         batch_name=entry.batch.name if entry.batch else None,
         room_name=entry.room.name if entry.room else None,
     )

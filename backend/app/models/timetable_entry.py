@@ -34,6 +34,7 @@ class TimetableEntry(Base):
     faculty_id: Mapped[int | None] = mapped_column(ForeignKey("faculty.faculty_id"), nullable=True)
     room_id: Mapped[int | None] = mapped_column(ForeignKey("rooms.room_id"), nullable=True)
     entry_type: Mapped[EntryType] = mapped_column(Enum(EntryType), nullable=False, default=EntryType.lecture)
+    is_extra: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     academic_term: Mapped[str] = mapped_column(String(20), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime | None] = mapped_column(TIMESTAMP, nullable=True)

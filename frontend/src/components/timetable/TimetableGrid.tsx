@@ -24,8 +24,9 @@ interface TimetableGridProps {
   showFaculty?: boolean;
 }
 
-const cellColor = (type?: TimetableSlot["type"]) => {
-  switch (type) {
+const cellColor = (slot: TimetableSlot) => {
+  if (slot.isExtra) return palette.warning;
+  switch (slot.type) {
     case "break":
       return palette.textDim;
     case "free":
@@ -39,8 +40,9 @@ const cellColor = (type?: TimetableSlot["type"]) => {
   }
 };
 
-const typeLabel = (type?: TimetableSlot["type"]) => {
-  switch (type) {
+const typeLabel = (slot: TimetableSlot) => {
+  if (slot.isExtra) return "Extra";
+  switch (slot.type) {
     case "lab":
       return "Lab";
     case "tutorial":
@@ -102,22 +104,31 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({ slots, showFaculty = fals
                       <Box
                         key={slot.id}
                         sx={{
-                          borderLeft: `2px solid ${cellColor(slot.type)}`,
+                          borderLeft: `2px solid ${cellColor(slot)}`,
                           pl: 0.75,
                           overflowWrap: "anywhere",
+                          ...(slot.isExtra
+                            ? {
+                                backgroundColor: "rgba(245, 215, 110, 0.12)",
+                                borderRadius: 0.5,
+                                py: 0.25,
+                              }
+                            : {}),
                         }}
                       >
-                        <Typography variant="caption" sx={{ color: cellColor(slot.type), display: "block", fontWeight: 700 }}>
-                          {slot.subject ?? typeLabel(slot.type) ?? "Class"}
+                        <Typography variant="caption" sx={{ color: cellColor(slot), display: "block", fontWeight: 700 }}>
+                          {slot.subjectCode
+                            ? `${slot.subjectCode}${slot.subject ? ` — ${slot.subject}` : ""}`
+                            : slot.subject ?? typeLabel(slot) ?? "Class"}
                         </Typography>
-                        {typeLabel(slot.type) && (
-                          <Typography variant="caption" sx={{ color: cellColor(slot.type), display: "block", fontWeight: 600 }}>
-                            {typeLabel(slot.type)}
+                        {typeLabel(slot) && (
+                          <Typography variant="caption" sx={{ color: cellColor(slot), display: "block", fontWeight: 600 }}>
+                            {typeLabel(slot)}
                           </Typography>
                         )}
                         {slot.division && (
-                          <Typography variant="caption" sx={{ color: palette.accent, display: "block" }}>
-                            {slot.division}
+                          <Typography variant="caption" sx={{ color: slot.isExtra ? palette.warning : palette.accent, display: "block" }}>
+                            Div: {slot.division}
                           </Typography>
                         )}
                         {showFaculty && slot.faculty && (

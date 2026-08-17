@@ -22,7 +22,9 @@ class AdminTimetableEntryOut(BaseModel):
     start_time: time
     end_time: time
     entry_type: EntryType
+    is_extra: bool = False
     division_id: int
+    subject_code: Optional[str] = None
     subject_name: Optional[str] = None
     faculty_name: Optional[str] = None
     division_name: Optional[str] = None

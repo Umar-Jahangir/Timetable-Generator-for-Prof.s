@@ -85,11 +85,20 @@ def extract_subject(query: str, subjects: list[dict]) -> Optional[int]:
 def extract_division(query: str, divisions: list[dict]) -> Optional[int]:
     """`divisions` is a list of {"division_id", "label"} dicts, where
     `label` is a display form like "TY-A". Matches case-insensitively,
-    allowing either "TY-A" or "TY A" or just "A" phrasing (the last only
-    matches if unambiguous, to avoid false positives on common letters)."""
+    allowing "TY-A", "TY A", "TYA", or spaced forms like "SY A"."""
     text = query.lower()
-    for d in divisions:
+    # Prefer longer / more specific labels first (TY-D1 before TY-A, SY-A before A).
+    ordered = sorted(divisions, key=lambda d: len(d["label"]), reverse=True)
+    for d in ordered:
         label = d["label"].lower()
-        if label in text or label.replace("-", " ") in text:
+        compact = label.replace("-", "").replace(" ", "")
+        spaced = label.replace("-", " ")
+        if label in text or spaced in text or compact in text:
             return d["division_id"]
+        # Year + letter with flexible separators: "sy a", "sy-a", "sy/a"
+        parts = re.split(r"[-_\s/]+", label)
+        if len(parts) == 2:
+            year, div = parts
+            if re.search(rf"\b{re.escape(year)}\b\s*[-_/]?\s*\b{re.escape(div)}\b", text):
+                return d["division_id"]
     return None

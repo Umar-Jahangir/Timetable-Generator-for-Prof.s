@@ -30,6 +30,7 @@ import {
 import { AdminTimetableEntry, DivisionReviewFollowUp, SuggestedConstraint } from "../../../types/admin";
 import { TimetableSlot } from "../../../types";
 import { getApiErrorMessage } from "../../../lib/errors";
+import { exportTimetableToExcel } from "../../../lib/exportTimetableExcel";
 
 function toGridSlots(entries: AdminTimetableEntry[]): TimetableSlot[] {
   return entries.map((entry) => ({
@@ -38,7 +39,9 @@ function toGridSlots(entries: AdminTimetableEntry[]): TimetableSlot[] {
     startTime: entry.start_time.slice(0, 5),
     endTime: entry.end_time.slice(0, 5),
     subject: entry.subject_name,
+    subjectCode: entry.subject_code,
     type: entry.entry_type,
+    isExtra: Boolean(entry.is_extra),
     division: `${entry.division_label ?? entry.division_name ?? "—"}${
       entry.batch_name ? ` · ${entry.batch_name}` : ""
     }`,
@@ -245,6 +248,21 @@ export default function TimetableGenerationPage() {
               Showing {filteredEntries.length} of {entries.length} entries
             </Typography>
           )}
+          <Box sx={{ flex: 1 }} />
+          <Button
+            variant="outlined"
+            color="primary"
+            disabled={filteredEntries.length === 0}
+            onClick={() =>
+              exportTimetableToExcel(
+                toGridSlots(filteredEntries),
+                `timetable-${selectedLabel.replace(/[^a-zA-Z0-9-_]+/g, "_")}.xlsx`,
+                { showFaculty: true },
+              )
+            }
+          >
+            Export Excel
+          </Button>
         </Box>
 
         {singleDivisionId !== null && selectedReview && (

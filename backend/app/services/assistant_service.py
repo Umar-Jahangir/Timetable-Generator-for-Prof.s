@@ -4,12 +4,15 @@ from typing import Optional
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from sqlalchemy.orm import joinedload
+
 from app.models.division import Division
 from app.models.lecture_request import LectureRequest, RequestStatus, RequestType
 from app.models.room import Room, RoomType
 from app.models.subject import Subject
 from app.models.subject_faculty_assignment import SubjectFacultyAssignment
 from app.models.time_slot import TimeSlot
+from app.models.timetable_entry import TimetableEntry
 from app.repositories.assistant_log_repository import AssistantLogRepository
 from app.repositories.faculty_repository import FacultyRepository
 from app.scheduling.assistant.entity_extractor import extract_day, extract_division, extract_subject, extract_time_range
@@ -43,7 +46,11 @@ class AssistantService:
         ]
 
     def _all_divisions_for_extraction(self) -> list[dict]:
-        divisions = self.db.query(Division).all()
+        divisions = (
+            self.db.query(Division)
+            .options(joinedload(Division.academic_year))
+            .all()
+        )
         out = []
         for d in divisions:
             label = f"{d.academic_year.name}-{d.name}"
@@ -56,6 +63,10 @@ class AssistantService:
     def _faculty_assignments(self, faculty_id: int) -> list[SubjectFacultyAssignment]:
         return (
             self.db.query(SubjectFacultyAssignment)
+            .options(
+                joinedload(SubjectFacultyAssignment.subject),
+                joinedload(SubjectFacultyAssignment.division).joinedload(Division.academic_year),
+            )
             .filter(SubjectFacultyAssignment.faculty_id == faculty_id)
             .all()
         )

@@ -213,6 +213,7 @@ CREATE TABLE timetable_entries (
     faculty_id      INT UNSIGNED NULL,
     room_id         INT UNSIGNED NULL,
     entry_type      ENUM('lecture','lab','tutorial','break') NOT NULL DEFAULT 'lecture',
+    is_extra        BOOLEAN NOT NULL DEFAULT FALSE,  -- approved extra / ad-hoc lecture
     academic_term   VARCHAR(20) NOT NULL,
     is_active       BOOLEAN NOT NULL DEFAULT TRUE,   -- soft-delete on reschedule
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -308,6 +309,7 @@ CREATE TABLE lecture_requests (
     status                    ENUM('pending','approved','rejected','cancelled') NOT NULL DEFAULT 'pending',
     requested_at              TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     resolved_at                TIMESTAMP NULL,
+    rejection_reason          VARCHAR(500) NULL,
     CONSTRAINT fk_request_faculty
         FOREIGN KEY (faculty_id) REFERENCES faculty(faculty_id)
         ON DELETE CASCADE ON UPDATE CASCADE,

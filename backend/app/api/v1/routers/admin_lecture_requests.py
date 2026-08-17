@@ -31,5 +31,7 @@ def resolve_request(
     db: Session = Depends(get_db),
     _: User = Depends(require_role(UserRole.admin)),
 ):
-    request = LectureRequestService(db).resolve_request(request_id, payload.status)
+    request = LectureRequestService(db).resolve_request(
+        request_id, payload.status, payload.rejection_reason
+    )
     return _to_out(request)

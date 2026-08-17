@@ -103,11 +103,14 @@ export default function TodaySchedulePage() {
               {entry.start_time.slice(0, 5)} - {entry.end_time.slice(0, 5)}
             </Typography>
             <Typography variant="body2" sx={{ color: palette.text, flexGrow: 1 }}>
-              {entry.subject_name ?? entry.entry_type}
+              {entry.subject_code && entry.subject_name
+                ? `${entry.subject_code} — ${entry.subject_name}`
+                : entry.subject_code ?? entry.subject_name ?? entry.entry_type}
             </Typography>
-            {entry.division_name && (
+            {(entry.division_label || entry.division_name) && (
               <Typography variant="body2" sx={{ color: palette.accent }}>
-                {entry.division_name}
+                {entry.division_label ?? entry.division_name}
+                {entry.batch_name ? ` · ${entry.batch_name}` : ""}
               </Typography>
             )}
           </Box>
