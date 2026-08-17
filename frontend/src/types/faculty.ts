@@ -40,6 +40,13 @@ export interface LectureRequestRecord {
   status: LectureRequestStatus;
   requested_at: string;
   resolved_at: string | null;
+  recommended_time_slot_id: number | null;
+  recommended_room_id: number | null;
+  recommendation_score: number | null;
+  recommended_day: string | null;
+  recommended_start_time: string | null;
+  recommended_end_time: string | null;
+  recommended_room_name: string | null;
   subject_name: string | null;
   division_name: string | null;
   faculty_name: string | null;

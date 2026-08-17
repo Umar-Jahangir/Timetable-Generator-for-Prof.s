@@ -10,6 +10,8 @@ import {
   DashboardStats,
   Department,
   Division,
+  DivisionReviewRejectResult,
+  DivisionTimetableReview,
   Faculty,
   FacultyCreateResponse,
   GenerationResult,
@@ -282,6 +284,8 @@ export function useResolveLectureRequest() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["admin", "lecture-requests"] });
       qc.invalidateQueries({ queryKey: ["admin", "dashboard"] });
+      qc.invalidateQueries({ queryKey: ["admin", "timetable"] });
+      qc.invalidateQueries({ queryKey: ["faculty"] });
     },
   });
 }
@@ -344,6 +348,7 @@ export function useGenerateTimetable() {
       // timetable/workload — invalidate broadly rather than trying to
       // enumerate every affected faculty member's query key.
       qc.invalidateQueries({ queryKey: ["admin", "timetable"] });
+      qc.invalidateQueries({ queryKey: ["admin", "timetable", "reviews"] });
       qc.invalidateQueries({ queryKey: ["faculty"] });
     },
   });
@@ -353,6 +358,52 @@ export function useAdminTimetable() {
   return useQuery({
     queryKey: ["admin", "timetable"],
     queryFn: async () => (await api.get<AdminTimetableEntry[]>("/admin/timetable")).data,
+  });
+}
+
+export function useDivisionTimetableReviews() {
+  return useQuery({
+    queryKey: ["admin", "timetable", "reviews"],
+    queryFn: async () => (await api.get<DivisionTimetableReview[]>("/admin/timetable/reviews")).data,
+  });
+}
+
+export function useApproveDivisionTimetable() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (divisionId: number) =>
+      (await api.post<DivisionTimetableReview>(`/admin/timetable/reviews/${divisionId}/approve`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "timetable", "reviews"] });
+      qc.invalidateQueries({ queryKey: ["faculty", "notifications"] });
+    },
+  });
+}
+
+export function useRejectDivisionTimetable() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      divisionId,
+      reason,
+      follow_up,
+    }: {
+      divisionId: number;
+      reason: string;
+      follow_up: "none" | "regenerate" | "suggest_constraint";
+    }) =>
+      (
+        await api.post<DivisionReviewRejectResult>(`/admin/timetable/reviews/${divisionId}/reject`, {
+          reason,
+          follow_up,
+        })
+      ).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin", "timetable"] });
+      qc.invalidateQueries({ queryKey: ["admin", "timetable", "reviews"] });
+      qc.invalidateQueries({ queryKey: ["admin", "constraints"] });
+      qc.invalidateQueries({ queryKey: ["faculty"] });
+    },
   });
 }
 

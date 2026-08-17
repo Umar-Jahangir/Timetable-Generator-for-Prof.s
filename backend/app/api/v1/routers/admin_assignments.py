@@ -19,6 +19,7 @@ def _to_out(a: SubjectFacultyAssignment) -> AssignmentOut:
         division_id=a.division_id,
         batch_id=a.batch_id,
         delivery_type=a.delivery_type,
+        is_online=a.is_online,
         academic_term=a.academic_term,
         display_order=a.display_order,
         subject_name=a.subject.name if a.subject else None,

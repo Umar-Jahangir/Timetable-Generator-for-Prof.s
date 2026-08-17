@@ -32,8 +32,27 @@ const cellColor = (type?: TimetableSlot["type"]) => {
       return palette.success;
     case "lab":
       return palette.accent;
+    case "tutorial":
+      return palette.border;
     default:
       return palette.text;
+  }
+};
+
+const typeLabel = (type?: TimetableSlot["type"]) => {
+  switch (type) {
+    case "lab":
+      return "Lab";
+    case "tutorial":
+      return "Tutorial";
+    case "lecture":
+      return "Theory";
+    case "break":
+      return "Break";
+    case "free":
+      return "Free";
+    default:
+      return null;
   }
 };
 
@@ -89,8 +108,13 @@ const TimetableGrid: React.FC<TimetableGridProps> = ({ slots, showFaculty = fals
                         }}
                       >
                         <Typography variant="caption" sx={{ color: cellColor(slot.type), display: "block", fontWeight: 700 }}>
-                          {slot.subject ?? slot.type.toUpperCase()}
+                          {slot.subject ?? typeLabel(slot.type) ?? "Class"}
                         </Typography>
+                        {typeLabel(slot.type) && (
+                          <Typography variant="caption" sx={{ color: cellColor(slot.type), display: "block", fontWeight: 600 }}>
+                            {typeLabel(slot.type)}
+                          </Typography>
+                        )}
                         {slot.division && (
                           <Typography variant="caption" sx={{ color: palette.accent, display: "block" }}>
                             {slot.division}

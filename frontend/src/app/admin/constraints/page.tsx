@@ -37,6 +37,7 @@ const CONSTRAINT_TYPES = [
   { value: "online_year", label: "Online Year" },
   { value: "division_day_off", label: "Division Day Off" },
   { value: "division_blackout", label: "Division Blackout" },
+  { value: "max_daily_break", label: "Max Daily Break (students)" },
   { value: "custom", label: "Custom" },
 ] as const;
 

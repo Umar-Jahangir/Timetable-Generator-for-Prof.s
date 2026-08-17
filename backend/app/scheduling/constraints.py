@@ -79,3 +79,24 @@ def get_division_blocked_slot_ids(db: Session) -> dict[int, set[int]]:
             if isinstance(division_id, int):
                 blocked.setdefault(division_id, set()).update(day_slot_ids)
     return blocked
+
+
+def get_max_daily_break_config(db: Session) -> dict[str, int] | None:
+    """Active `max_daily_break` rule, or None if disabled.
+
+    Config shape: `{"max_breaks": 1, "max_break_hours": 2}`
+    """
+    constraint = (
+        db.query(SchedulingConstraint)
+        .filter(
+            SchedulingConstraint.constraint_type == ConstraintType.max_daily_break,
+            SchedulingConstraint.is_active.is_(True),
+        )
+        .order_by(SchedulingConstraint.constraint_id.asc())
+        .first()
+    )
+    if not constraint:
+        return None
+    max_breaks = int(constraint.config.get("max_breaks", 1))
+    max_break_hours = int(constraint.config.get("max_break_hours", 2))
+    return {"max_breaks": max_breaks, "max_break_hours": max_break_hours}

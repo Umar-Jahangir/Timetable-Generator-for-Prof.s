@@ -49,6 +49,7 @@ export const constraintSchema = z.object({
     "online_year",
     "division_day_off",
     "division_blackout",
+    "max_daily_break",
     "custom",
   ]),
   config_json: z.string().min(1, "Config JSON is required").refine(
@@ -71,6 +72,7 @@ export const assignmentSchema = z.object({
   faculty_id: z.coerce.number().int().positive("Select a faculty member"),
   division_id: z.coerce.number().int().positive("Select a division"),
   delivery_type: z.enum(["theory", "lab", "tutorial"]),
+  is_online: z.boolean(),
   batch_id: z.preprocess(
     (value) => (value === "" || value === 0 || value === null || value === undefined ? null : value),
     z.coerce.number().int().positive().nullable().optional()

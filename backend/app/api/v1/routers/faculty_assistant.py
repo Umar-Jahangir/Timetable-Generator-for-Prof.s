@@ -40,9 +40,8 @@ def confirm_booking(
     current_user: User = Depends(require_role(UserRole.faculty)),
 ):
     """
-    Turns a previously-returned recommendation into a real
-    `timetable_entries` row. Re-validates the slot is still free before
-    committing — a recommendation can go stale if someone else books
-    the same slot between when it was shown and when this is called.
+    Submits a previously-returned recommendation to the admin approval
+    queue. The recommendation is validated now and validated again if
+    an admin approves it, because it can go stale while pending.
     """
     return AssistantService(db).confirm_booking(current_user.user_id, payload)

@@ -21,6 +21,17 @@ def _to_out(request: LectureRequest) -> LectureRequestOut:
         status=request.status,
         requested_at=request.requested_at,
         resolved_at=request.resolved_at,
+        recommended_time_slot_id=request.recommended_time_slot_id,
+        recommended_room_id=request.recommended_room_id,
+        recommendation_score=float(request.recommendation_score) if request.recommendation_score is not None else None,
+        recommended_day=request.recommended_time_slot.day_of_week.value if request.recommended_time_slot else None,
+        recommended_start_time=(
+            request.recommended_time_slot.start_time.strftime("%H:%M") if request.recommended_time_slot else None
+        ),
+        recommended_end_time=(
+            request.recommended_time_slot.end_time.strftime("%H:%M") if request.recommended_time_slot else None
+        ),
+        recommended_room_name=request.recommended_room.name if request.recommended_room else None,
         subject_name=request.subject.name if request.subject else None,
         division_name=request.division.name if request.division else None,
         faculty_name=request.faculty.user.name if request.faculty and request.faculty.user else None,

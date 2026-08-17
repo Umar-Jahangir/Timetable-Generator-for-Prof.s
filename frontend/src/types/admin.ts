@@ -87,6 +87,7 @@ export type ConstraintType =
   | "online_year"
   | "division_day_off"
   | "division_blackout"
+  | "max_daily_break"
   | "custom";
 
 export interface SchedulingConstraint {
@@ -106,6 +107,7 @@ export interface Assignment {
   division_id: number;
   batch_id: number | null;
   delivery_type: "theory" | "lab" | "tutorial";
+  is_online: boolean;
   academic_term: string;
   display_order?: number;
   subject_name: string | null;
@@ -121,6 +123,7 @@ export interface AssignmentCreatePayload {
   division_id: number;
   batch_id?: number | null;
   delivery_type: "theory" | "lab" | "tutorial";
+  is_online?: boolean;
   academic_term?: string;
 }
 
@@ -148,6 +151,37 @@ export interface AdminTimetableEntry {
   division_label: string | null;
   batch_name: string | null;
   room_name: string | null;
+}
+
+export type DivisionReviewStatus = "pending" | "approved" | "rejected";
+export type DivisionReviewFollowUp = "none" | "regenerate" | "suggest_constraint";
+
+export interface SuggestedConstraint {
+  name: string;
+  constraint_type: ConstraintType;
+  config: Record<string, unknown>;
+  explanation: string;
+  auto_applied: boolean;
+}
+
+export interface DivisionTimetableReview {
+  review_id: number;
+  division_id: number;
+  academic_term: string;
+  status: DivisionReviewStatus;
+  rejection_reason: string | null;
+  follow_up: DivisionReviewFollowUp;
+  suggested_constraint: Record<string, unknown> | null;
+  reviewed_at: string | null;
+  division_label: string | null;
+  entry_count: number;
+}
+
+export interface DivisionReviewRejectResult {
+  review: DivisionTimetableReview;
+  suggestion: SuggestedConstraint | null;
+  generation: GenerationResult | null;
+  message: string;
 }
 
 // ---------- Phase 8: Analytics ----------

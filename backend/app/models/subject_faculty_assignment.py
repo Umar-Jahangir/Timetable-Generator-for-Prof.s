@@ -1,6 +1,6 @@
 import enum
 
-from sqlalchemy import Enum, ForeignKey, Integer, String
+from sqlalchemy import Boolean, Enum, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.session import Base
@@ -25,6 +25,7 @@ class SubjectFacultyAssignment(Base):
     division_id: Mapped[int] = mapped_column(ForeignKey("divisions.division_id"), nullable=False)
     batch_id: Mapped[int | None] = mapped_column(ForeignKey("batches.batch_id"), nullable=True)
     delivery_type: Mapped[DeliveryType] = mapped_column(Enum(DeliveryType), nullable=False)
+    is_online: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     academic_term: Mapped[str] = mapped_column(String(20), nullable=False)
     display_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 

@@ -16,6 +16,8 @@ class LectureRequestRepository:
             joinedload(LectureRequest.subject),
             joinedload(LectureRequest.division),
             joinedload(LectureRequest.faculty).joinedload(Faculty.user),
+            joinedload(LectureRequest.recommended_time_slot),
+            joinedload(LectureRequest.recommended_room),
         )
 
     def list_for_faculty(self, faculty_id: int) -> list[LectureRequest]:

@@ -22,6 +22,13 @@ class LectureRequestOut(BaseModel):
     status: RequestStatus
     requested_at: datetime
     resolved_at: Optional[datetime]
+    recommended_time_slot_id: Optional[int] = None
+    recommended_room_id: Optional[int] = None
+    recommendation_score: Optional[float] = None
+    recommended_day: Optional[str] = None
+    recommended_start_time: Optional[str] = None
+    recommended_end_time: Optional[str] = None
+    recommended_room_name: Optional[str] = None
     # Denormalized display fields so the frontend doesn't need extra
     # lookups just to show "DBMS · TY-A · Prof. John Smith" in a list.
     subject_name: Optional[str] = None

@@ -10,7 +10,6 @@ from app.models.room import Room, RoomType
 from app.models.subject import Subject
 from app.models.subject_faculty_assignment import SubjectFacultyAssignment
 from app.models.time_slot import TimeSlot
-from app.models.timetable_entry import EntryType, TimetableEntry
 from app.repositories.assistant_log_repository import AssistantLogRepository
 from app.repositories.faculty_repository import FacultyRepository
 from app.scheduling.assistant.entity_extractor import extract_day, extract_division, extract_subject, extract_time_range
@@ -367,16 +366,16 @@ class AssistantService:
         )
         return AssistantQueryResponse(intent=Intent.find_common_free_slot.value, message=message, data=data)
 
-    # ---------- confirm & book ----------
+    # ---------- submit recommendation for approval ----------
 
     def confirm_booking(self, faculty_user_id: int, request: AssistantConfirmRequest) -> AssistantConfirmResponse:
         faculty = self.faculty_repo.get_by_user_id(faculty_user_id)
         if not faculty:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Faculty profile not found.")
 
-        # Re-validate — the slot may have been taken by someone else
-        # between when it was recommended and when the user clicked
-        # "Schedule Lecture". Never trust a stale recommendation.
+        # Re-validate before creating the pending request. Admin approval
+        # repeats this check, because the recommendation can become stale
+        # while it waits in the approval queue.
         faculty_occupied = self._occupied_slot_ids(faculty_id=faculty.faculty_id)
         division_occupied = self._occupied_slot_ids(division_id=request.division_id)
         room_occupied = self._occupied_slot_ids(room_id=request.room_id)
@@ -388,19 +387,6 @@ class AssistantService:
                 detail="That slot is no longer available — please ask the assistant again for a fresh recommendation.",
             )
 
-        entry = TimetableEntry(
-            time_slot_id=request.time_slot_id,
-            division_id=request.division_id,
-            subject_id=request.subject_id,
-            faculty_id=faculty.faculty_id,
-            room_id=request.room_id,
-            entry_type=EntryType.lecture,
-            academic_term=ACADEMIC_TERM,
-            is_active=True,
-        )
-        self.db.add(entry)
-        self.db.flush()
-
         lecture_request = LectureRequest(
             faculty_id=faculty.faculty_id,
             subject_id=request.subject_id,
@@ -409,13 +395,10 @@ class AssistantService:
             recommended_time_slot_id=request.time_slot_id,
             recommended_room_id=request.room_id,
             recommendation_score=request.score,
-            status=RequestStatus.approved,
             requested_at=datetime.now(timezone.utc),
-            resolved_at=datetime.now(timezone.utc),
         )
         self.db.add(lecture_request)
         self.db.commit()
-        self.db.refresh(entry)
         self.db.refresh(lecture_request)
 
         self.logs.log(
@@ -427,7 +410,6 @@ class AssistantService:
         )
 
         return AssistantConfirmResponse(
-            message="Lecture scheduled — it now appears on your timetable.",
+            message="Lecture request submitted for admin approval.",
             request_id=lecture_request.request_id,
-            entry_id=entry.entry_id,
         )

@@ -8,6 +8,12 @@ from app.models.faculty import Faculty
 from app.models.timetable_entry import TimetableEntry
 from app.models.user import User, UserRole
 from app.schemas.timetable import AdminTimetableEntryOut, GenerationResultOut
+from app.schemas.timetable_review import (
+    DivisionReviewOut,
+    DivisionReviewReject,
+    DivisionReviewRejectResult,
+)
+from app.services.timetable_review_service import TimetableReviewService
 from app.services.timetable_service import ACADEMIC_TERM, TimetableService
 
 router = APIRouter(prefix="/admin/timetable", tags=["Admin - Timetable"])
@@ -72,3 +78,37 @@ def get_timetable(
         .all()
     )
     return [_to_out(e) for e in entries]
+
+
+@router.get("/reviews", response_model=list[DivisionReviewOut])
+def list_division_reviews(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.admin)),
+):
+    """Per-division approve/reject queue for the current generated timetable."""
+    return TimetableReviewService(db).list_reviews()
+
+
+@router.post("/reviews/{division_id}/approve", response_model=DivisionReviewOut)
+def approve_division_timetable(
+    division_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.admin)),
+):
+    return TimetableReviewService(db).approve(division_id)
+
+
+@router.post("/reviews/{division_id}/reject", response_model=DivisionReviewRejectResult)
+def reject_division_timetable(
+    division_id: int,
+    payload: DivisionReviewReject,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_role(UserRole.admin)),
+):
+    """
+    Reject a division's timetable. Requires a reason. follow_up options:
+    - none: record reason + suggest a constraint draft
+    - suggest_constraint: same, emphasized for Constraints page
+    - regenerate: apply an enforceable inferred constraint when possible, then regenerate all
+    """
+    return TimetableReviewService(db).reject(division_id, payload)

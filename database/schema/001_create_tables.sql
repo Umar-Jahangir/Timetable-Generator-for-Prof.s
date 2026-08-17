@@ -152,6 +152,7 @@ CREATE TABLE subject_faculty_assignment (
     division_id     INT UNSIGNED NOT NULL,
     batch_id        INT UNSIGNED NULL,        -- required for lab/tutorial; NULL for theory
     delivery_type   ENUM('theory','lab','tutorial') NOT NULL,
+    is_online       BOOLEAN NOT NULL DEFAULT FALSE,
     academic_term   VARCHAR(20) NOT NULL,      -- e.g. '2026-ODD'
     display_order   INT UNSIGNED NOT NULL DEFAULT 0, -- admin drag-and-drop order
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -263,6 +264,7 @@ CREATE TABLE scheduling_constraints (
                         'online_year',
                         'division_day_off',
                         'division_blackout',
+                        'max_daily_break',
                         'custom'
                      ) NOT NULL,
     config           JSON NOT NULL,   -- e.g. {"day":"Friday","start":"13:00","end":"14:00"}
@@ -326,6 +328,28 @@ CREATE TABLE lecture_requests (
         ON DELETE SET NULL ON UPDATE CASCADE,
     INDEX idx_request_status (status),
     INDEX idx_request_faculty (faculty_id)
+) ENGINE=InnoDB;
+
+-- ---------------------------------------------------------------------
+-- 14b. division_timetable_reviews  (admin approve/reject per division)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS division_timetable_reviews;
+CREATE TABLE division_timetable_reviews (
+    review_id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    division_id           INT UNSIGNED NOT NULL,
+    academic_term         VARCHAR(20) NOT NULL,
+    status                ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    rejection_reason      VARCHAR(500) NULL,
+    follow_up             ENUM('none','regenerate','suggest_constraint') NOT NULL DEFAULT 'none',
+    suggested_constraint  JSON NULL,
+    reviewed_at           TIMESTAMP NULL,
+    created_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at            TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    CONSTRAINT fk_dtr_division
+        FOREIGN KEY (division_id) REFERENCES divisions(division_id)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    UNIQUE KEY uq_dtr_division_term (division_id, academic_term),
+    INDEX idx_dtr_term_status (academic_term, status)
 ) ENGINE=InnoDB;
 
 -- ---------------------------------------------------------------------

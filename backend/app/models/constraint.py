@@ -14,6 +14,7 @@ class ConstraintType(str, enum.Enum):
     online_year = "online_year"
     division_day_off = "division_day_off"
     division_blackout = "division_blackout"
+    max_daily_break = "max_daily_break"
     custom = "custom"
 
 

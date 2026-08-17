@@ -56,4 +56,4 @@ class AssistantConfirmRequest(BaseModel):
 class AssistantConfirmResponse(BaseModel):
     message: str
     request_id: int
-    entry_id: int
+    entry_id: Optional[int] = None

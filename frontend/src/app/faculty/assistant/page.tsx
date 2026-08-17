@@ -145,7 +145,7 @@ export default function AssistantPage() {
 
                   {m.confirmed ? (
                     <Alert severity="success" sx={{ mt: 2 }}>
-                      Scheduled — check your timetable.
+                      Request sent to the admin for approval.
                     </Alert>
                   ) : (
                     <Box sx={{ display: "flex", gap: 1.5, mt: 2 }}>
@@ -156,7 +156,7 @@ export default function AssistantPage() {
                         disabled={confirmBooking.isPending}
                         onClick={() => handleSchedule(m.id, m.recommendation!, m.requestType ?? "extra")}
                       >
-                        [ Schedule Lecture ]
+                        [ Send Approval Request ]
                       </Button>
                       {m.alternates && m.alternates.length > 0 && (
                         <Button variant="outlined" color="primary" size="small" onClick={() => handleFindAnother(m.id)}>

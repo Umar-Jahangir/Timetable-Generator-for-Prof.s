@@ -46,7 +46,9 @@ def test_unknown_query_gets_graceful_fallback_not_an_error(faculty_headers, clie
     assert resp.json()["intent"] == "unknown"
 
 
-def test_confirm_booking_creates_real_entry_and_rejects_stale_reconfirm(faculty_headers, client, db):
+def test_confirm_booking_creates_pending_request_then_admin_approval_creates_entry(
+    faculty_headers, admin_headers, client, db
+):
     from sqlalchemy import text
 
     query_resp = client.post(
@@ -68,19 +70,38 @@ def test_confirm_booking_creates_real_entry_and_rejects_stale_reconfirm(faculty_
 
     confirm_resp = client.post("/api/v1/faculty/assistant/confirm", headers=faculty_headers, json=confirm_payload)
     assert confirm_resp.status_code == 200, confirm_resp.text
-    entry_id = confirm_resp.json()["entry_id"]
+    request_id = confirm_resp.json()["request_id"]
+    assert confirm_resp.json()["entry_id"] is None
 
-    # Prove it's a REAL row, not just a 200 response.
+    # The faculty confirmation only creates a pending approval request.
+    pending = client.get("/api/v1/admin/lecture-requests", headers=admin_headers)
+    assert pending.status_code == 200
+    assert any(r["request_id"] == request_id for r in pending.json())
+    before_approval = db.execute(
+        text(
+            "SELECT COUNT(*) FROM timetable_entries "
+            "WHERE is_active = 1 AND faculty_id = 1 AND time_slot_id = :slot_id"
+        ),
+        {"slot_id": rec["time_slot_id"]},
+    ).scalar()
+    assert before_approval == 0
+
+    approve_resp = client.put(
+        f"/api/v1/admin/lecture-requests/{request_id}",
+        headers=admin_headers,
+        json={"status": "approved"},
+    )
+    assert approve_resp.status_code == 200, approve_resp.text
+    assert approve_resp.json()["status"] == "approved"
+
     found = db.execute(
-        text("SELECT COUNT(*) FROM timetable_entries WHERE entry_id = :eid AND is_active = 1"),
-        {"eid": entry_id},
+        text(
+            "SELECT COUNT(*) FROM timetable_entries "
+            "WHERE is_active = 1 AND faculty_id = 1 AND time_slot_id = :slot_id"
+        ),
+        {"slot_id": rec["time_slot_id"]},
     ).scalar()
     assert found == 1
-
-    # Re-confirming the identical now-taken slot must be rejected —
-    # this is the stale-recommendation re-validation from Phase 7.
-    stale_resp = client.post("/api/v1/faculty/assistant/confirm", headers=faculty_headers, json=confirm_payload)
-    assert stale_resp.status_code == 409
 
 
 def test_check_workload_intent(faculty_headers, client):

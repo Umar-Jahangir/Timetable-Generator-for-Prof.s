@@ -10,10 +10,8 @@ import { usePendingLectureRequests, useResolveLectureRequest } from "../../../ho
  * New in Phase 5 — not in the original Admin nav from Phase 1, added
  * because the feature is now real: faculty submit requests (Today's
  * Schedule page), and this is where an admin actually resolves them.
- * The recommended-slot / confidence-score fields from the original
- * wireframe ("AI Recommendation", "98%") are intentionally absent here
- * — those come from the Rule-Based Scheduling Assistant in Phase 7.
- * For now this is a plain approve/reject queue.
+ * Assistant-submitted requests include the recommended slot and score
+ * so the admin can approve or reject the exact proposed lecture.
  */
 export default function LectureRequestsPage() {
   const { data: requests = [], isLoading } = usePendingLectureRequests();
@@ -53,6 +51,13 @@ export default function LectureRequestsPage() {
               <Typography variant="caption" sx={{ color: palette.textDim }}>
                 Requested {new Date(r.requested_at).toLocaleString()}
               </Typography>
+              {r.recommended_day && (
+                <Typography variant="caption" sx={{ color: palette.accent, display: "block", mt: 0.5 }}>
+                  Recommended: {r.recommended_day} · {r.recommended_start_time}–{r.recommended_end_time}
+                  {r.recommended_room_name ? ` · ${r.recommended_room_name}` : ""}
+                  {r.recommendation_score !== null ? ` · score ${r.recommendation_score}/100` : ""}
+                </Typography>
+              )}
             </Box>
             <Box sx={{ display: "flex", gap: 1 }}>
               <Button

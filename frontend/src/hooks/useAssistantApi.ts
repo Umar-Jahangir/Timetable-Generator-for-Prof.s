@@ -20,14 +20,10 @@ export function useConfirmAssistantBooking() {
     mutationFn: async (payload: AssistantConfirmPayload) =>
       (await api.post<AssistantConfirmResponse>("/faculty/assistant/confirm", payload)).data,
     onSuccess: () => {
-      // A confirmed booking writes a real timetable_entries row —
-      // invalidate everything schedule-related so the Weekly Timetable,
-      // Today's Schedule, and Workload pages don't show stale data if
-      // the faculty member navigates to them next.
-      queryClient.invalidateQueries({ queryKey: ["faculty", "timetable"] });
-      queryClient.invalidateQueries({ queryKey: ["faculty", "schedule"] });
-      queryClient.invalidateQueries({ queryKey: ["faculty", "workload"] });
+      // Confirmation creates a pending request; no timetable entry is
+      // written until an admin approves it.
       queryClient.invalidateQueries({ queryKey: ["faculty", "lecture-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["admin", "lecture-requests"] });
     },
   });
 }

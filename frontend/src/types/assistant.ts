@@ -44,7 +44,7 @@ export interface AssistantConfirmPayload {
 export interface AssistantConfirmResponse {
   message: string;
   request_id: number;
-  entry_id: number;
+  entry_id: number | null;
 }
 
 // ---------- Frontend-only chat state ----------

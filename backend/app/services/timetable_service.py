@@ -14,7 +14,11 @@ from app.scheduling.optimizer import (
     TimeSlotInfo,
     generate_timetable,
 )
-from app.scheduling.constraints import get_blocked_slot_ids, get_division_blocked_slot_ids
+from app.scheduling.constraints import (
+    get_blocked_slot_ids,
+    get_division_blocked_slot_ids,
+    get_max_daily_break_config,
+)
 from app.scheduling.time_slot_seeder import ensure_full_week_time_slots
 
 ACADEMIC_TERM = "2026-ODD"
@@ -57,6 +61,7 @@ class TimetableService:
                         a.batch.strength if a.batch else None,
                         session_type,
                         subject.is_industrial_elective,
+                        a.is_online or subject.is_online,
                         i,
                     )
                 )
@@ -80,6 +85,7 @@ class TimetableService:
         }
         blocked = self._blocked_slot_ids()
         division_blocked = self._division_blocked_slot_ids()
+        max_daily_break = get_max_daily_break_config(self.db)
 
         if not sessions:
             return {
@@ -100,9 +106,17 @@ class TimetableService:
             blocked,
             time_limit_seconds,
             division_blocked,
+            max_daily_break,
         )
 
         entries_created = self._persist(result)
+
+        # Reset per-division admin reviews to pending for every division
+        # that received at least one entry in this generation.
+        division_ids = sorted({e.division_id for e in result.entries})
+        from app.services.timetable_review_service import TimetableReviewService
+
+        TimetableReviewService(self.db).reset_pending_for_generated_divisions(division_ids)
 
         return {
             "sessions_requested": result.sessions_requested,

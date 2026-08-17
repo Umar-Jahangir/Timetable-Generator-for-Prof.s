@@ -9,7 +9,9 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   MenuItem,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
@@ -67,7 +69,13 @@ export default function AssignmentsPage() {
     formState: { errors },
   } = useForm<AssignmentFormValues>({
     resolver: zodResolver(assignmentSchema) as Resolver<AssignmentFormValues>,
-    defaultValues: { subject_id: 0, faculty_id: 0, delivery_type: "theory", batch_id: null },
+    defaultValues: {
+      subject_id: 0,
+      faculty_id: 0,
+      delivery_type: "theory",
+      is_online: false,
+      batch_id: null,
+    },
   });
   const selectedDivisionId = useWatch({ control, name: "division_id" });
   const selectedDeliveryType = useWatch({ control, name: "delivery_type" });
@@ -91,6 +99,7 @@ export default function AssignmentsPage() {
         row.delivery_type,
         row.batch_name,
         row.academic_term,
+        row.is_online ? "online" : "offline",
         String(row.subject_id),
         String(row.faculty_id),
       ]
@@ -104,7 +113,14 @@ export default function AssignmentsPage() {
   const openCreate = () => {
     setEditing(null);
     setFormError(null);
-    reset({ subject_id: 0, faculty_id: 0, division_id: 0, delivery_type: "theory", batch_id: null });
+    reset({
+      subject_id: 0,
+      faculty_id: 0,
+      division_id: 0,
+      delivery_type: "theory",
+      is_online: false,
+      batch_id: null,
+    });
     setDialogOpen(true);
   };
 
@@ -116,6 +132,7 @@ export default function AssignmentsPage() {
       faculty_id: assignment.faculty_id,
       division_id: assignment.division_id,
       delivery_type: assignment.delivery_type,
+      is_online: assignment.is_online,
       batch_id: assignment.batch_id,
     });
     setDialogOpen(true);
@@ -153,6 +170,7 @@ export default function AssignmentsPage() {
     { key: "faculty", label: "Faculty", render: (r) => r.faculty_name ?? `#${r.faculty_id}` },
     { key: "division", label: "Division", render: (r) => r.division_label ?? r.division_name ?? `#${r.division_id}` },
     { key: "type", label: "Type", render: (r) => r.delivery_type },
+    { key: "mode", label: "Mode", render: (r) => (r.is_online ? "Online" : "Offline") },
     { key: "batch", label: "Batch", render: (r) => r.batch_name ?? "All batches" },
     { key: "term", label: "Term", render: (r) => r.academic_term },
   ];
@@ -214,7 +232,21 @@ export default function AssignmentsPage() {
               name="subject_id"
               control={control}
               render={({ field }) => (
-                <TextField {...field} select label="Subject" fullWidth error={!!errors.subject_id} helperText={errors.subject_id?.message}>
+                <TextField
+                  {...field}
+                  select
+                  label="Subject"
+                  fullWidth
+                  error={!!errors.subject_id}
+                  helperText={errors.subject_id?.message}
+                  onChange={(event) => {
+                    field.onChange(event);
+                    const subject = subjects.find((s) => s.subject_id === Number(event.target.value));
+                    if (subject && !editing) {
+                      setValue("is_online", subject.is_online);
+                    }
+                  }}
+                >
                   <MenuItem value={0} disabled>
                     Select a subject
                   </MenuItem>
@@ -316,6 +348,16 @@ export default function AssignmentsPage() {
                 )}
               />
             )}
+            <Controller
+              name="is_online"
+              control={control}
+              render={({ field }) => (
+                <FormControlLabel
+                  control={<Switch checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />}
+                  label="Online mode (no classroom / lab room)"
+                />
+              )}
+            />
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setDialogOpen(false)}>Cancel</Button>

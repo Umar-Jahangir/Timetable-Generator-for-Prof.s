@@ -14,7 +14,10 @@ SCOPE (v1, honestly stated rather than overclaimed):
   session type (lab -> laboratory, lecture/tutorial -> classroom),
   room capacity >= division strength, labs occupy 2 consecutive slots
   on the same day, faculty_free_hour constraints block those slots for
-  every faculty member, online divisions skip room assignment entirely.
+  every faculty member, online divisions/assignments skip room assignment,
+  max_daily_break (at most N student idle gaps per division-day, each
+  gap at most H teaching hours — lunch/break rows are excluded from the
+  teaching grid so college lunch is not counted as a student break).
 - Objective: maximize the number of required sessions successfully
   scheduled (a session that can't be placed is left out rather than
   making the whole model infeasible — this matters because with a
@@ -22,9 +25,7 @@ SCOPE (v1, honestly stated rather than overclaimed):
   outright instead of producing a partial, still-useful timetable).
 - NOT yet enforced (defined in the schema/API in Phase 4, planned for
   a future iteration): max_continuous_hours, lab_continuous_hours,
-  student-idle-time minimization, faculty workload balancing as a soft
-  objective. These require a richer model (multi-day lookahead,
-  weighted objectives) that's a natural v2, not a v1 blocker.
+  faculty workload balancing as a soft objective.
 """
 
 from dataclasses import dataclass, field
@@ -43,6 +44,7 @@ class SessionRequirement:
     audience_strength: int | None
     session_type: str  # "lecture" | "tutorial" | "lab"
     is_industrial_elective: bool
+    is_online: bool
     occurrence: int  # 0-based index among sessions of this type for this assignment
 
 
@@ -119,7 +121,7 @@ def _build_candidates(
         required_order = 2 if session.session_type == "lab" else 1
         usable_slots = [s for s in usable_slots if s.slot_order == required_order]
 
-    if division.is_online:
+    if division.is_online or session.is_online:
         candidate_rooms: list[RoomInfo | None] = [None]
     elif session.session_type == "lab":
         candidate_rooms = [
@@ -167,6 +169,79 @@ def _build_candidates(
     return candidates
 
 
+def _add_max_daily_break_constraints(
+    model: cp_model.CpModel,
+    sessions: list[SessionRequirement],
+    session_candidates: list[list[Candidate]],
+    session_vars: list[dict[int, cp_model.IntVar]],
+    time_slots: list[TimeSlotInfo],
+    max_breaks: int,
+    max_break_hours: int,
+) -> None:
+    """Limit student idle gaps between classes on each division-day.
+
+    Idle time before the first class and after the last class does not
+    count. Only gaps *between* occupied teaching slots count as breaks.
+    """
+
+    def slot_ids_for(candidate: Candidate) -> list[int]:
+        ids = [candidate.time_slot_id]
+        if candidate.second_time_slot_id is not None:
+            ids.append(candidate.second_time_slot_id)
+        return ids
+
+    slots_by_day: dict[str, list[TimeSlotInfo]] = {}
+    for slot in time_slots:
+        slots_by_day.setdefault(slot.day_of_week, []).append(slot)
+    for day_slots in slots_by_day.values():
+        day_slots.sort(key=lambda s: s.slot_order)
+
+    division_ids = sorted({session.division_id for session in sessions})
+    for division_id in division_ids:
+        for day, day_slots in slots_by_day.items():
+            if not day_slots:
+                continue
+
+            occupied: list[cp_model.IntVar] = []
+            for slot in day_slots:
+                occupying = [
+                    session_vars[i][j]
+                    for i, session in enumerate(sessions)
+                    if session.division_id == division_id
+                    for j, candidate in enumerate(session_candidates[i])
+                    if slot.time_slot_id in slot_ids_for(candidate)
+                ]
+                occ = model.NewBoolVar(f"occ_d{division_id}_{day}_{slot.time_slot_id}")
+                if occupying:
+                    model.Add(sum(occupying) >= 1).OnlyEnforceIf(occ)
+                    model.Add(sum(occupying) == 0).OnlyEnforceIf(occ.Not())
+                else:
+                    model.Add(occ == 0)
+                occupied.append(occ)
+
+            n = len(occupied)
+            # Number of contiguous teaching blocks ≤ max_breaks + 1.
+            starts: list[cp_model.IntVar] = []
+            for k in range(n):
+                start = model.NewBoolVar(f"blk_d{division_id}_{day}_{k}")
+                if k == 0:
+                    model.Add(start == occupied[k])
+                else:
+                    # start <=> occupied[k] & ~occupied[k-1]
+                    model.AddBoolAnd([occupied[k], occupied[k - 1].Not()]).OnlyEnforceIf(start)
+                    model.AddBoolOr([occupied[k].Not(), occupied[k - 1]]).OnlyEnforceIf(start.Not())
+                starts.append(start)
+            model.Add(sum(starts) <= max_breaks + 1)
+
+            # Forbid an empty span longer than max_break_hours between classes.
+            for i in range(n):
+                for j in range(i + max_break_hours + 2, n):
+                    # occupied[i], empty (i+1..j-1), occupied[j] is illegal.
+                    model.AddBoolOr(
+                        [occupied[i].Not(), occupied[j].Not(), *occupied[i + 1 : j]]
+                    )
+
+
 def generate_timetable(
     sessions: list[SessionRequirement],
     time_slots: list[TimeSlotInfo],
@@ -175,6 +250,7 @@ def generate_timetable(
     blocked_slot_ids: set[int],
     time_limit_seconds: float = 15.0,
     division_blocked_slot_ids: dict[int, set[int]] | None = None,
+    max_daily_break: dict[str, int] | None = None,
 ) -> GenerationResult:
     start = perf_counter()
     model = cp_model.CpModel()
@@ -258,6 +334,17 @@ def generate_timetable(
                 ]
                 if matching_batch_vars:
                     model.Add(sum(theory_vars + matching_batch_vars) <= 1)
+
+    if max_daily_break:
+        _add_max_daily_break_constraints(
+            model,
+            sessions,
+            session_candidates,
+            session_vars,
+            time_slots,
+            max_breaks=int(max_daily_break.get("max_breaks", 1)),
+            max_break_hours=int(max_daily_break.get("max_break_hours", 2)),
+        )
 
     # Objective: schedule as many required sessions as possible.
     all_vars = [v for vars_for_session in session_vars for v in vars_for_session.values()]

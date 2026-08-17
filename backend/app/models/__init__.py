@@ -16,3 +16,8 @@ from app.models.notification import Notification  # noqa: F401
 from app.models.lecture_request import LectureRequest, RequestStatus, RequestType  # noqa: F401
 from app.models.subject_faculty_assignment import SubjectFacultyAssignment  # noqa: F401
 from app.models.assistant_query_log import AssistantQueryLog  # noqa: F401
+from app.models.division_timetable_review import (  # noqa: F401
+    DivisionTimetableReview,
+    ReviewFollowUp,
+    ReviewStatus,
+)

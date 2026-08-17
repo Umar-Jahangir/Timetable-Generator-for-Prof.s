@@ -48,3 +48,5 @@ class LectureRequest(Base):
     faculty = relationship("Faculty")
     subject = relationship("Subject")
     division = relationship("Division")
+    recommended_time_slot = relationship("TimeSlot", foreign_keys=[recommended_time_slot_id])
+    recommended_room = relationship("Room", foreign_keys=[recommended_room_id])

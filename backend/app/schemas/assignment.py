@@ -10,6 +10,7 @@ class AssignmentCreate(BaseModel):
     division_id: int
     batch_id: Optional[int] = None
     delivery_type: DeliveryType
+    is_online: bool = False
     academic_term: str = "2026-ODD"
 
 
@@ -28,6 +29,7 @@ class AssignmentOut(BaseModel):
     division_id: int
     batch_id: Optional[int]
     delivery_type: DeliveryType
+    is_online: bool = False
     academic_term: str
     display_order: int = 0
     # Denormalized for display — avoids extra frontend lookups.
